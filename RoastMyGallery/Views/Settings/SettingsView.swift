@@ -103,33 +103,33 @@ struct SettingsView: View {
         SettingsSection(title: "Plan") {
             HStack {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Current plan")
+                    Text("Credits")
                         .font(Theme.Typography.headline)
-                    Text(purchaseManager.entitlements.isPro
-                         ? "Full history, deep analysis, unlimited cards"
-                         : "Last 3 months, 1 share card")
+                    Text(purchaseManager.isSubscribed
+                         ? "Subscribed — \(PurchaseManager.advertisedCredits(forProductID: PurchaseManager.ProductID.monthly.rawValue) ?? 50) credits top up monthly"
+                         : "\(PurchaseManager.analysisCost) credit per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
                 Spacer()
-                Text(purchaseManager.entitlements.isPro ? "PRO" : "FREE")
-                    .font(Theme.Typography.label)
-                    .tracking(1)
+                Text("\(purchaseManager.creditBalance)")
+                    .font(Theme.Typography.title)
+                    .foregroundStyle(Theme.Colors.accent)
                     .padding(.horizontal, Theme.Spacing.m)
                     .padding(.vertical, Theme.Spacing.s)
-                    .background(
-                        purchaseManager.entitlements.isPro
-                            ? Theme.Colors.accentSoft
-                            : Theme.Colors.cream,
-                        in: Capsule()
-                    )
+                    .background(Theme.Colors.accentSoft, in: Capsule())
             }
 
-            if !purchaseManager.entitlements.isPro {
-                Divider().overlay(Theme.Colors.background)
-                Button("Upgrade to Pro") { showPaywall = true }
-                    .buttonStyle(SoftButtonStyle())
+            if purchaseManager.isSubscribed {
+                Text("Subscribed · renews monthly")
+                    .font(Theme.Typography.label)
+                    .tracking(1)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
+
+            Divider().overlay(Theme.Colors.background)
+            Button(purchaseManager.isSubscribed ? "Get more credits" : "Get credits") { showPaywall = true }
+                .buttonStyle(SoftButtonStyle())
 
             Divider().overlay(Theme.Colors.background)
             Button {
@@ -305,10 +305,10 @@ struct SettingsView: View {
 
     private func message(for result: PurchaseManager.RestoreResult) -> String {
         switch result {
-        case .restoredPro:
-            return "Your Pro purchase has been restored. Enjoy the full lens."
+        case .restoredSubscription:
+            return "Your subscription has been restored. Monthly credits will keep topping up."
         case .noPurchases:
-            return "No previous purchases were found on this Apple ID."
+            return "No subscription was found on this Apple ID. (Consumable credit packs can't be restored — see support.)"
         case .failed(let reason):
             return reason
         }

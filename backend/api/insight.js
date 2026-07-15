@@ -7,6 +7,7 @@
 
 import { buildPrompt, allowedCategories, GEMINI_MODEL, PERSONA_PROMPTS } from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
+import { spendCredits, CREDIT_COSTS } from "../lib/revenuecat.js";
 
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
-  const { stats, persona, locale } = req.body;
+  const { stats, persona, locale, appUserId } = req.body;
 
   if (!allowDailyRequest()) {
     return res.status(429).json({
@@ -117,6 +118,19 @@ export default async function handler(req, res) {
   // `insightText` (title line, blank line, narrative) is kept for clients
   // that predate `segments`; `shareLine`/`segments` are additive.
   const { insightText, shareLine, segments } = parsed ?? legacyFields(rawText);
+
+  // Deduct-after-success: the insight generated, so charge 1 credit. We do this
+  // AFTER a usable result exists, and never fail the response on a deduction
+  // error — we can't un-generate the insight. A failed/ skipped deduction is
+  // logged for reconciliation (and is a no-op until RevenueCat env vars exist).
+  if (appUserId) {
+    const spend = await spendCredits(appUserId, CREDIT_COSTS.analysis);
+    if (!spend.ok) {
+      console.error(
+        `Credit deduction failed for ${appUserId} after a successful insight (status ${spend.status}).`
+      );
+    }
+  }
 
   return res.status(200).json({
     insightText,
@@ -242,7 +256,7 @@ const STATS_SCHEMA = {
   animalCounts: (v) => isBoundedRecord(v, 100, isCount),
 };
 
-const BODY_FIELDS = new Set(["stats", "persona", "locale", "schemaVersion"]);
+const BODY_FIELDS = new Set(["stats", "persona", "locale", "schemaVersion", "appUserId"]);
 
 /** Returns an error message for invalid input, or null if valid. */
 function validate(body) {
@@ -252,7 +266,12 @@ function validate(body) {
   for (const key of Object.keys(body)) {
     if (!BODY_FIELDS.has(key)) return `Unknown field "${key}".`;
   }
-  const { stats, persona, locale, schemaVersion } = body;
+  const { stats, persona, locale, schemaVersion, appUserId } = body;
+
+  // Optional: RevenueCat App User ID for the post-success credit deduction.
+  if (appUserId !== undefined && !(typeof appUserId === "string" && appUserId.length > 0 && appUserId.length <= 256)) {
+    return 'Field "appUserId" must be a non-empty string of at most 256 characters when present.';
+  }
 
   if (!persona || !Object.hasOwn(PERSONA_PROMPTS, persona)) {
     return `Field "persona" must be one of: ${Object.keys(PERSONA_PROMPTS).join(", ")}.`;

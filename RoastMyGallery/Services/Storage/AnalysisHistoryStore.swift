@@ -8,10 +8,8 @@ import Observation
 /// payloads, volume is a few KB per record, and this avoids schema/migration
 /// machinery. Swap the load/persist internals if that ever changes.
 ///
-/// ALL records are stored regardless of tier; the free-tier "only the most
-/// recent is viewable" rule is enforced in the UI via
-/// `PurchaseManager.Entitlements`, so upgrading to Pro retroactively unlocks
-/// old analyses.
+/// ALL records are viewable — in the credit model the user already spent a
+/// credit to generate each one, so history has nothing to gate.
 @MainActor
 @Observable
 final class AnalysisHistoryStore {

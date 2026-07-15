@@ -7,6 +7,10 @@ struct RoastMyGalleryApp: App {
     @State private var scanViewModel: ScanViewModel
 
     init() {
+        // Configure RevenueCat before anything touches `Purchases.shared`
+        // (PurchaseManager's init subscribes to the CustomerInfo stream).
+        PurchaseManager.configure()
+
         let environment = AppEnvironment.live()
         let history = AnalysisHistoryStore()
         _historyStore = State(initialValue: history)
@@ -25,7 +29,7 @@ struct RoastMyGalleryApp: App {
                 // Pastel palette is tuned for light backgrounds only; a proper
                 // dark variant is a future design pass.
                 .preferredColorScheme(.light)
-                .task { await purchaseManager.loadProducts() }
+                .task { await purchaseManager.bootstrap() }
         }
     }
 }

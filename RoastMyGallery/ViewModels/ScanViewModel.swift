@@ -81,11 +81,16 @@ final class ScanViewModel {
 
     // MARK: - Scan pipeline
 
-    /// Runs the full pipeline. Entitlements gate *scope* only; the persona is
-    /// whatever the user picked (both are free-tier).
-    func startScan(entitlements: PurchaseManager.Entitlements) {
+    /// Runs the full pipeline. With the credit model there's no scope gating —
+    /// every analysis covers full history and costs 1 credit, deducted by the
+    /// backend *after* a successful insight (see `BackendInsightGenerator`).
+    ///
+    /// - Parameter appUserID: RevenueCat App User ID, forwarded to the backend
+    ///   so it can charge the right customer. Caller should have already
+    ///   verified affordability (UX gate) before invoking this.
+    func startScan(appUserID: String) {
         guard scanTask == nil, let persona = selectedPersona else { return }
-        let scope = entitlements.analysisScope
+        let scope = AnalysisScope.fullHistory
 
         scanTask = Task {
             defer { scanTask = nil }
@@ -107,7 +112,11 @@ final class ScanViewModel {
                 let photoIndex = environment.aggregator.photoIndex(for: observations)
 
                 phase = .generatingInsight
-                let insight = try await environment.insightGenerator.generateInsight(from: stats, persona: persona)
+                let insight = try await environment.insightGenerator.generateInsight(
+                    from: stats,
+                    persona: persona,
+                    appUserID: appUserID
+                )
 
                 let record = AnalysisRecord(
                     id: UUID(),

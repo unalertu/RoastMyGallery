@@ -2,11 +2,10 @@ import Foundation
 
 /// The narrative voice used when generating insights.
 ///
-/// Both personas are equally available in the free tier — persona choice is a
-/// stylistic preference, never a paywall lever. Pro gates on *scope* (history
-/// depth, deep analysis, unlimited cards); see `PurchaseManager.Entitlements`.
-/// There is deliberately no default persona: the picker presents both
-/// neutrally and the user must choose.
+/// Persona choice is a stylistic preference, never a paywall lever — both are
+/// always available. Monetization is per-action credits (see `PurchaseManager`),
+/// not persona gating. There is deliberately no default persona: the picker
+/// presents both neutrally and the user must choose.
 enum Persona: String, Codable, CaseIterable, Identifiable, Sendable {
     /// Witty, teasing commentary about the user's photo habits.
     case roast

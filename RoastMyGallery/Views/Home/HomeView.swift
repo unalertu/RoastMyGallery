@@ -6,8 +6,10 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AnalysisHistoryStore.self) private var history
     @Environment(ScanViewModel.self) private var scanViewModel
+    @Environment(PurchaseManager.self) private var purchaseManager
 
     @State private var showScanFlow = false
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -40,6 +42,7 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showScanFlow) {
             ScanFlowView()
         }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
     }
 
     private func startScan() {
@@ -48,15 +51,37 @@ struct HomeView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Roast My Gallery")
-                .font(Theme.Typography.display)
-            Text(history.latest.map { "Last analyzed \($0.createdAt.formatted(.relative(presentation: .named)))" }
-                 ?? "Your camera roll has opinions about you")
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.textSecondary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Roast My Gallery")
+                    .font(Theme.Typography.display)
+                Text(history.latest.map { "Last analyzed \($0.createdAt.formatted(.relative(presentation: .named)))" }
+                     ?? "Your camera roll has opinions about you")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer(minLength: Theme.Spacing.m)
+            creditPill
         }
         .padding(.top, Theme.Spacing.l)
+    }
+
+    /// Compact, always-visible credit balance. Tapping opens the credit store.
+    private var creditPill: some View {
+        Button { showPaywall = true } label: {
+            HStack(spacing: Theme.Spacing.xs) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
+                Text("\(purchaseManager.creditBalance)")
+                    .font(Theme.Typography.headline)
+            }
+            .foregroundStyle(Theme.Colors.accent)
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.vertical, Theme.Spacing.s)
+            .background(Theme.Colors.accentSoft, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(purchaseManager.creditBalance) credits. Tap to get more.")
     }
 
     /// Summary of the most recent analysis; tapping opens the full results.

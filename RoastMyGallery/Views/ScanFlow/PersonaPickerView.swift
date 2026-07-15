@@ -6,6 +6,8 @@ struct PersonaPickerView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(PurchaseManager.self) private var purchaseManager
 
+    @State private var showPaywall = false
+
     var body: some View {
         VStack(spacing: Theme.Spacing.l) {
             Spacer()
@@ -34,19 +36,29 @@ struct PersonaPickerView: View {
             Spacer()
 
             Button("Analyze My Photos") {
-                scanViewModel.startScan(entitlements: purchaseManager.entitlements)
+                // Client-side affordability check is UX only — route to the
+                // paywall early if the balance looks short. The authoritative
+                // gate is RevenueCat rejecting an over-spend server-side.
+                if purchaseManager.canAfford(PurchaseManager.analysisCost) {
+                    scanViewModel.startScan(appUserID: purchaseManager.appUserID)
+                } else {
+                    showPaywall = true
+                }
             }
             .buttonStyle(PrimaryButtonStyle())
             .disabled(scanViewModel.selectedPersona == nil)
 
             Text(scanViewModel.selectedPersona == nil
                  ? "Choose a voice to begin"
-                 : "Analysis happens on your device")
+                 : "\(PurchaseManager.analysisCost) credit • you have \(purchaseManager.creditBalance)")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
         .padding(Theme.Spacing.l)
         .animation(Theme.motion, value: scanViewModel.selectedPersona)
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .analysis(have: purchaseManager.creditBalance))
+        }
     }
 }
 

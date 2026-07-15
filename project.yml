@@ -7,12 +7,24 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
 
+# Swift Package dependencies. `from: 5.0.0` resolves to the latest RevenueCat
+# 5.x, which includes the Virtual Currencies API (Purchases.virtualCurrencies(),
+# cachedVirtualCurrencies, invalidateVirtualCurrenciesCache()). Run
+# `xcodegen generate` after changing this, then let Xcode/SPM resolve the package.
+packages:
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios
+    from: "5.0.0"
+
 targets:
   RoastMyGallery:
     type: application
     platform: iOS
     sources:
       - RoastMyGallery
+    dependencies:
+      - package: RevenueCat
+        product: RevenueCat
     info:
       path: RoastMyGallery/Info.plist
       properties:

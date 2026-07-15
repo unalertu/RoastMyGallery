@@ -51,7 +51,9 @@ struct InsightView: View {
             .scrollIndicators(.hidden)
         }
         .foregroundStyle(Theme.Colors.textPrimary)
-        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .deepVision(have: purchaseManager.creditBalance))
+        }
         .sheet(isPresented: $showDeepAnalysis) {
             DeepAnalysisConsentView(persona: record.persona)
         }
@@ -143,26 +145,28 @@ struct InsightView: View {
 
     @ViewBuilder
     private var deepAnalysisButton: some View {
-        if purchaseManager.entitlements.canUseDeepAnalysis {
+        // Gated on credits now, not Pro. The affordability check is UX only;
+        // the actual 5-credit charge is issued by the backend after a
+        // successful Deep Vision run (see DeepAnalysisConsentView).
+        if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
             Button {
                 showDeepAnalysis = true
             } label: {
-                Label("Deep Photo Analysis", systemImage: "sparkles")
+                Label("Deep Photo Analysis · \(PurchaseManager.deepVisionCost) credits", systemImage: "sparkles")
             }
             .buttonStyle(SoftButtonStyle())
         } else {
             Button {
                 showPaywall = true
             } label: {
-                Label("Unlock Deep Photo Analysis", systemImage: "sparkles")
+                Label("Deep Photo Analysis · needs \(PurchaseManager.deepVisionCost) credits", systemImage: "sparkles")
             }
             .buttonStyle(SoftButtonStyle())
         }
     }
 
     private func renderShareCard() {
-        // TODO: enforce entitlements.shareCardLimit for free users (persist a
-        // "cards generated" counter, route to paywall when exceeded).
+        // Share cards are unlimited in the credit model — no gating here.
         do {
             let classic = try ShareCardRenderer()
                 .renderCard(insight: record.insight, stats: record.stats)

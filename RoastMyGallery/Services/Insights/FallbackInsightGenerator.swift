@@ -8,16 +8,18 @@ struct FallbackInsightGenerator: InsightGenerating {
     let primary: InsightGenerating
     let fallback: InsightGenerating
 
-    func generateInsight(from stats: PhotoStats, persona: Persona) async throws -> Insight {
+    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight {
         do {
-            return try await primary.generateInsight(from: stats, persona: persona)
+            return try await primary.generateInsight(from: stats, persona: persona, appUserID: appUserID)
         } catch is CancellationError {
             throw CancellationError()
         } catch {
             // TODO: route through a proper logger + surface "offline mode"
             // subtly in the UI if product wants that distinction.
+            // NOTE: the fallback is local (no backend), so a fallback insight is
+            // NOT charged — the credit deduct lives in the backend endpoint.
             try Task.checkCancellation()
-            return try await fallback.generateInsight(from: stats, persona: persona)
+            return try await fallback.generateInsight(from: stats, persona: persona, appUserID: appUserID)
         }
     }
 }

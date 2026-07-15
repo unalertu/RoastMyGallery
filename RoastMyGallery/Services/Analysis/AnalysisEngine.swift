@@ -45,9 +45,14 @@ protocol StatsAggregating: Sendable {
 }
 
 /// Stage 3 — turn stats into a narrative. The only stage that talks to the
-/// network in the free tier, and it only ever sends the `PhotoStats` JSON.
+/// network, and it only ever sends the `PhotoStats` JSON (plus the RevenueCat
+/// App User ID so the backend can deduct 1 credit *after* a successful
+/// generation — never the photos themselves).
 protocol InsightGenerating: Sendable {
-    func generateInsight(from stats: PhotoStats, persona: Persona) async throws -> Insight
+    /// - Parameter appUserID: RevenueCat App User ID, passed to the backend so
+    ///   it can deduct the analysis credit on success. Ignored by offline/mock
+    ///   generators (which don't charge).
+    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight
 }
 
 /// Stage 4 — render the insight into a shareable image (Instagram story sized).

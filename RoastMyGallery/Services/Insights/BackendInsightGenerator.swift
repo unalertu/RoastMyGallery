@@ -16,6 +16,10 @@ struct BackendInsightGenerator: InsightGenerating {
         let persona: Persona
         /// Lets the backend answer in the user's language.
         let locale: String
+        /// RevenueCat App User ID. The backend deducts 1 CRD for this customer
+        /// *after* a successful generation (deduct-after-success). Optional on
+        /// the wire so older/mock paths can omit it.
+        let appUserId: String
         /// Bump when the stats schema changes so the backend can branch.
         let schemaVersion = 1
     }
@@ -33,7 +37,7 @@ struct BackendInsightGenerator: InsightGenerating {
         let generatedAt: Date
     }
 
-    func generateInsight(from stats: PhotoStats, persona: Persona) async throws -> Insight {
+    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight {
         var request = URLRequest(url: baseURL.appending(path: "api/insight"))
         request.httpMethod = "POST"
         request.timeoutInterval = 30
@@ -41,7 +45,12 @@ struct BackendInsightGenerator: InsightGenerating {
         // Anti-abuse tripwire, not real auth — see AppConfig.appSharedSecret.
         request.setValue(AppConfig.appSharedSecret, forHTTPHeaderField: "X-App-Secret")
         request.httpBody = try JSONEncoder.backend.encode(
-            InsightRequest(stats: stats, persona: persona, locale: Locale.current.identifier)
+            InsightRequest(
+                stats: stats,
+                persona: persona,
+                locale: Locale.current.identifier,
+                appUserId: appUserID
+            )
         )
 
         let data: Data

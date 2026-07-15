@@ -14,6 +14,7 @@ struct DeepAnalysisConsentView: View {
     let persona: Persona
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(PurchaseManager.self) private var purchaseManager
 
     @State private var selection: [PhotosPickerItem] = []
     @State private var hasConsented = false
@@ -160,6 +161,11 @@ struct DeepAnalysisConsentView: View {
                 photos: photos,
                 persona: persona
             )
+            // Deduct-after-success: the batch worked, so charge the credits.
+            // The backend (holding the RevenueCat secret key) performs the
+            // actual deduction and rejects an over-spend; we then reconcile the
+            // balance. A failed deduction never blocks results already shown.
+            await purchaseManager.spend(PurchaseManager.deepVisionCost, reason: "deep_vision")
         } catch {
             errorMessage = error.localizedDescription
         }

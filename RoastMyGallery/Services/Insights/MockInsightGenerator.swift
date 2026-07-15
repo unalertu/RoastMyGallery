@@ -7,7 +7,8 @@ struct MockInsightGenerator: InsightGenerating {
     /// Artificial latency so loading states are visible during development.
     var simulatedDelay: Duration = .seconds(1.5)
 
-    func generateInsight(from stats: PhotoStats, persona: Persona) async throws -> Insight {
+    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight {
+        // appUserID is unused: the mock is local and never charges credits.
         try await Task.sleep(for: simulatedDelay)
 
         let topCategory = stats.topCategories.first?.category ?? "absolutely nothing"

@@ -4,7 +4,8 @@ import Foundation
 /// consented photo batch to the backend's vision-LLM endpoint.
 ///
 /// INVARIANTS the real implementation must keep:
-/// - Called only after `PurchaseManager.entitlements.canUseDeepAnalysis`.
+/// - Called only when the user can afford it (`PurchaseManager.deepVisionCost`
+///   credits); the 5-credit charge is issued by the backend after success.
 /// - Called only with photos the user picked in an explicit per-batch consent
 ///   flow (`DeepAnalysisConsentView`) — never auto-selected.
 /// - Asset IDs are used client-side to map results back; only pixel data and
