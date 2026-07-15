@@ -1,0 +1,66 @@
+{
+  "identifier" : "8C0F5E1A-0000-4000-8000-000000000001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "8C0F5E1A-0000-4000-8000-000000000002",
+      "localizations" : [
+        {
+          "description" : "Lifetime access to all Pro features.",
+          "displayName" : "Pro — Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.example.roastmygallery.pro.lifetime",
+      "referenceName" : "Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "8C0F5E1A-0000-4000-8000-000000000003",
+      "localizations" : [
+
+      ],
+      "name" : "Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "8C0F5E1A-0000-4000-8000-000000000004",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "All Pro features, billed monthly.",
+              "displayName" : "Pro — Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.example.roastmygallery.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "8C0F5E1A-0000-4000-8000-000000000003",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

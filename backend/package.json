@@ -1,0 +1,10 @@
+{
+  "name": "roast-my-gallery-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vercel serverless backend for Roast My Gallery — turns anonymous photo stats into LLM-written insights.",
+  "engines": {
+    "node": ">=18"
+  }
+}
