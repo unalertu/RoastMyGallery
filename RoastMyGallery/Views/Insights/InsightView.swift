@@ -55,7 +55,7 @@ struct InsightView: View {
             PaywallView(context: .deepVision(have: purchaseManager.creditBalance))
         }
         .sheet(isPresented: $showDeepAnalysis) {
-            DeepAnalysisConsentView(persona: record.persona)
+            DeepAnalysisConsentView(sourceRecord: record)
         }
         .sheet(item: $shareCardSet) { set in
             ShareCardPickerSheet(cards: set.cards)

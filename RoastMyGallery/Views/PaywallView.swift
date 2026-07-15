@@ -11,6 +11,7 @@ struct PaywallView: View {
         case general
         case analysis(have: Int)
         case deepVision(have: Int)
+        case lockedMode(name: String)
 
         var message: String? {
             switch self {
@@ -20,6 +21,8 @@ struct PaywallView: View {
                 return "You need \(PurchaseManager.analysisCost) credit for this analysis — you have \(have)."
             case .deepVision(let have):
                 return "You need \(PurchaseManager.deepVisionCost) credits for a Deep Vision batch — you have \(have)."
+            case .lockedMode(let name):
+                return "Unlock \(name) — and every analysis mode — with your first credit purchase."
             }
         }
     }

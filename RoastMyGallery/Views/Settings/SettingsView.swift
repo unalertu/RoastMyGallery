@@ -12,6 +12,7 @@ struct SettingsView: View {
 
     @State private var showPaywall = false
     @State private var showDeleteConfirmation = false
+    @State private var showShareSheet = false
 
     /// Populated after a restore attempt to drive the result alert.
     @State private var restoreMessage: String?
@@ -149,6 +150,22 @@ struct SettingsView: View {
                 .padding(.vertical, Theme.Spacing.s)
             }
             .disabled(isRestoring)
+
+            if purchaseManager.isSubscribed {
+                Divider().overlay(Theme.Colors.background)
+                Button {
+                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                        openURL(url)
+                    }
+                } label: {
+                    SettingsRowLabel(
+                        icon: "creditcard",
+                        title: "Manage Subscription",
+                        detail: "Change or cancel in the App Store"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -175,6 +192,36 @@ struct SettingsView: View {
                     icon: "doc.text.magnifyingglass",
                     title: "Review what data was sent",
                     detail: "See the exact statistics used for your insight"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(Theme.Colors.background)
+
+            Button {
+                if let url = URL(string: Self.privacyPolicyURL) {
+                    openURL(url)
+                }
+            } label: {
+                SettingsRowLabel(
+                    icon: "hand.raised",
+                    title: "Privacy Policy",
+                    detail: "How we handle your data"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(Theme.Colors.background)
+
+            Button {
+                if let url = URL(string: Self.termsOfUseURL) {
+                    openURL(url)
+                }
+            } label: {
+                SettingsRowLabel(
+                    icon: "doc.plaintext",
+                    title: "Terms of Use (EULA)",
+                    detail: "Apple's standard end-user license"
                 )
             }
             .buttonStyle(.plain)
@@ -224,6 +271,19 @@ struct SettingsView: View {
 
     private var dataSection: some View {
         SettingsSection(title: "Data") {
+            NavigationLink {
+                GalleryStatsView()
+            } label: {
+                SettingsRowLabel(
+                    icon: "chart.bar.xaxis.ascending",
+                    title: "Gallery Stats",
+                    detail: "Selfies, animals, categories & more"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(Theme.Colors.background)
+
             Button {
                 showDeleteConfirmation = true
             } label: {
@@ -277,6 +337,24 @@ struct SettingsView: View {
                 SettingsRowLabel(icon: "star", title: "Rate this app", detail: nil)
             }
             .buttonStyle(.plain)
+
+            Divider().overlay(Theme.Colors.background)
+
+            Button {
+                showShareSheet = true
+            } label: {
+                SettingsRowLabel(icon: "square.and.arrow.up", title: "Share this app", detail: nil)
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showShareSheet) {
+                // TODO: Replace with the real App Store URL once published.
+                let appURL = URL(string: "https://apps.apple.com/app/roast-my-gallery/id0000000000")!
+                ShareSheet(items: [
+                    "Check out Roast My Gallery — it hilariously roasts your camera roll! 📸🔥",
+                    appURL
+                ])
+                .presentationDetents([.medium])
+            }
         }
     }
 
@@ -319,6 +397,11 @@ struct SettingsView: View {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
         return "\(version) (\(build))"
     }
+
+    // MARK: - URLs
+    // TODO: Replace these placeholder URLs with the real ones before shipping.
+    private static let privacyPolicyURL = "https://roastmygallery.com/privacy"
+    private static let termsOfUseURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 }
 
 // MARK: - Section & row building blocks
@@ -368,4 +451,17 @@ private struct SettingsRowLabel: View {
             }
         }
     }
+}
+
+// MARK: - UIKit Share Sheet wrapper
+
+/// Minimal `UIActivityViewController` wrapper for SwiftUI.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

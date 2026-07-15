@@ -84,6 +84,12 @@ final class PurchaseManager {
     /// "Subscriber" badge only — it grants no features beyond the credits it
     /// tops up. Independent from the balance.
     private(set) var isSubscribed = false
+    /// Whether this customer has ever completed a real purchase (any credit
+    /// pack or the subscription) — as opposed to just having a balance from
+    /// the free starter grant. Once true, stays true even if the balance
+    /// later drops to 0; it gates access to locked analysis modes, not
+    /// individual analyses (that's `creditBalance`).
+    private(set) var hasUnlockedModes = false
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInFlight = false
     var lastError: String?
@@ -165,6 +171,9 @@ final class PurchaseManager {
     private func updateSubscription(from info: CustomerInfo) {
         isSubscribed = !info.entitlements.active.isEmpty
             || info.activeSubscriptions.contains(ProductID.monthly.rawValue)
+        // The backend-issued starter grant never appears in StoreKit
+        // transaction history, so this only flips true on a real purchase.
+        hasUnlockedModes = isSubscribed || !info.nonSubscriptionTransactions.isEmpty
     }
 
     // MARK: - Balance (Virtual Currency)

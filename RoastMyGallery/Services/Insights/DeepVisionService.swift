@@ -1,37 +1,175 @@
 import Foundation
 
-/// Pro-tier deep analysis, mocked. The real implementation will upload the
-/// consented photo batch to the backend's vision-LLM endpoint.
+/// Pro-tier deep analysis: uploads the consented, already-downscaled photo
+/// batch to `backend/api/deep-vision.js` (a Vercel function wrapping Gemini's
+/// vision model) and maps the returned batch-index references back to local
+/// asset IDs.
 ///
-/// INVARIANTS the real implementation must keep:
+/// INVARIANTS:
 /// - Called only when the user can afford it (`PurchaseManager.deepVisionCost`
 ///   credits); the 5-credit charge is issued by the backend after success.
 /// - Called only with photos the user picked in an explicit per-batch consent
 ///   flow (`DeepAnalysisConsentView`) — never auto-selected.
-/// - Asset IDs are used client-side to map results back; only pixel data and
-///   the persona are uploaded.
+/// - Asset IDs are used client-side to map results back; only pixel data,
+///   the persona, and the RevenueCat App User ID are uploaded.
+/// - Photos must already be downscaled (`ImageDownscaler`) — never originals.
+struct BackendDeepVisionService: DeepVisionAnalyzing {
+    let maxBatchSize = 30
+
+    var baseURL: URL = AppConfig.backendBaseURL
+    var session: URLSession = .shared
+
+    private struct DeepVisionRequest: Encodable {
+        let appUserId: String
+        let persona: Persona
+        /// Lets the backend answer in the user's language.
+        let locale: String
+        /// Base64 JPEGs, in batch order — the order the backend's
+        /// `photoIndexes` refer back to.
+        let images: [String]
+        let schemaVersion = 1
+    }
+
+    /// Contract with the backend: `{ summary, segments, generatedAt }` where
+    /// each segment references photos by their index in the uploaded batch —
+    /// see backend/api/deep-vision.js.
+    private struct DeepVisionResponse: Decodable {
+        let summary: String
+        let segments: [Segment]
+        let generatedAt: Date
+
+        struct Segment: Decodable {
+            let photoIndexes: [Int]
+            let text: String
+        }
+    }
+
+    func analyze(
+        photos: [(assetID: String, jpegData: Data)],
+        persona: Persona,
+        appUserID: String
+    ) async throws -> DeepVisionResult {
+        precondition(photos.count <= maxBatchSize, "Batch exceeds maxBatchSize")
+
+        var request = URLRequest(url: baseURL.appending(path: "api/deep-vision"))
+        request.httpMethod = "POST"
+        // Generous: a few MB of upload plus multi-image vision latency.
+        request.timeoutInterval = 120
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Anti-abuse tripwire, not real auth — see AppConfig.appSharedSecret.
+        request.setValue(AppConfig.appSharedSecret, forHTTPHeaderField: "X-App-Secret")
+        request.httpBody = try JSONEncoder.backend.encode(
+            DeepVisionRequest(
+                appUserId: appUserID,
+                persona: persona,
+                locale: Locale.current.identifier,
+                images: photos.map { $0.jpegData.base64EncodedString() }
+            )
+        )
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch {
+            throw DeepVisionError.network
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw DeepVisionError.serviceUnavailable
+        }
+        switch http.statusCode {
+        case 200..<300:
+            break
+        case 402:
+            throw DeepVisionError.insufficientCredits
+        case 413:
+            throw DeepVisionError.batchTooLarge
+        case 429:
+            throw DeepVisionError.rateLimited
+        default:
+            throw DeepVisionError.serviceUnavailable
+        }
+
+        let decoded: DeepVisionResponse
+        do {
+            decoded = try JSONDecoder.backend.decode(DeepVisionResponse.self, from: data)
+        } catch {
+            throw DeepVisionError.serviceUnavailable
+        }
+
+        // Map batch indexes back to local asset IDs — this side of the wire
+        // is the only place both halves of the mapping exist.
+        let segments = decoded.segments.map { segment in
+            DeepVisionResult.Segment(
+                id: UUID(),
+                assetIDs: segment.photoIndexes.compactMap { index in
+                    photos.indices.contains(index) ? photos[index].assetID : nil
+                },
+                text: segment.text
+            )
+        }
+        return DeepVisionResult(summary: decoded.summary, segments: segments)
+    }
+}
+
+/// User-facing failures of a Deep Vision batch. Calm copy; and because the
+/// backend deducts only after success, every one of these means no credits
+/// were spent.
+enum DeepVisionError: LocalizedError, Equatable {
+    case insufficientCredits
+    case rateLimited
+    case batchTooLarge
+    case network
+    case serviceUnavailable
+    /// No picked photo could be read/downscaled.
+    case preparationFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .insufficientCredits:
+            return "Not enough credits for this batch. No credits were taken."
+        case .rateLimited:
+            return "The analysis service is busy right now. Try again in a minute — no credits were taken."
+        case .batchTooLarge:
+            return "That batch is too large to upload. Try picking fewer photos."
+        case .network:
+            return "Couldn't reach the analysis service. Check your connection and try again — no credits were taken."
+        case .serviceUnavailable:
+            return "The analysis service had a hiccup. Try again in a bit — no credits were taken."
+        case .preparationFailed:
+            return "Those photos couldn't be prepared for upload. Try picking different ones."
+        }
+    }
+}
+
+/// Offline/preview stand-in. Never uploads, never charges.
 struct MockDeepVisionService: DeepVisionAnalyzing {
     let maxBatchSize = 30
 
     func analyze(
         photos: [(assetID: String, jpegData: Data)],
-        persona: Persona
-    ) async throws -> [PhotoCommentary] {
+        persona: Persona,
+        appUserID: String
+    ) async throws -> DeepVisionResult {
         precondition(photos.count <= maxBatchSize, "Batch exceeds maxBatchSize")
         try await Task.sleep(for: .seconds(2))
 
-        // TODO: Replace with a real call:
-        //   POST {backend}/v1/deep-analysis  (multipart: photos + persona)
-        // The backend forwards to a vision-capable LLM and returns commentary
-        // in upload order; map back to asset IDs client-side as below.
-        return photos.map { photo in
-            PhotoCommentary(
-                id: UUID(),
-                assetID: photo.assetID,
-                comment: persona == .roast
-                    ? "Bold of you to consider this one of your top 30."
-                    : "This photo suggests a moment you genuinely wanted to keep."
-            )
-        }
+        return DeepVisionResult(
+            summary: persona == .roast
+                ? "A camera roll curated with confidence, if not consistency."
+                : "A batch full of moments you clearly wanted to hold on to.",
+            segments: photos.map { photo in
+                DeepVisionResult.Segment(
+                    id: UUID(),
+                    assetIDs: [photo.assetID],
+                    text: persona == .roast
+                        ? "Bold of you to consider this one of your top 30."
+                        : "This photo suggests a moment you genuinely wanted to keep."
+                )
+            }
+        )
     }
 }

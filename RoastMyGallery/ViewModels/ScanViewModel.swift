@@ -26,6 +26,9 @@ final class ScanViewModel {
     /// No default on purpose — the picker presents both personas neutrally
     /// and the user must choose before scanning.
     var selectedPersona: Persona?
+    /// Defaults to full history so the free/standard flow needs zero extra
+    /// taps — scoped modes (date range, album) are opted into explicitly.
+    var selectedScope: AnalysisScope = .fullHistory
 
     private let environment: AppEnvironment
     private let history: AnalysisHistoryStore
@@ -44,8 +47,14 @@ final class ScanViewModel {
     func prepareForNewScan() {
         cancelScan()
         selectedPersona = nil
+        selectedScope = .fullHistory
         phase = .needsPermission
         refreshPermissionPhase()
+    }
+
+    /// Albums available for the album-scoped analysis mode.
+    func fetchAlbums() -> [PhotoLibraryService.AlbumInfo] {
+        environment.photoLibrary.fetchUserAlbums()
     }
 
     // MARK: - Permission
@@ -81,16 +90,17 @@ final class ScanViewModel {
 
     // MARK: - Scan pipeline
 
-    /// Runs the full pipeline. With the credit model there's no scope gating —
-    /// every analysis covers full history and costs 1 credit, deducted by the
-    /// backend *after* a successful insight (see `BackendInsightGenerator`).
+    /// Runs the full pipeline over `selectedScope` (full history by default,
+    /// or a date range / album for the scoped modes). Costs 1 credit,
+    /// deducted by the backend *after* a successful insight (see
+    /// `BackendInsightGenerator`) — the scope itself doesn't change the cost.
     ///
     /// - Parameter appUserID: RevenueCat App User ID, forwarded to the backend
     ///   so it can charge the right customer. Caller should have already
     ///   verified affordability (UX gate) before invoking this.
     func startScan(appUserID: String) {
         guard scanTask == nil, let persona = selectedPersona else { return }
-        let scope = AnalysisScope.fullHistory
+        let scope = selectedScope
 
         scanTask = Task {
             defer { scanTask = nil }

@@ -11,9 +11,18 @@ protocol PhotoLibraryProviding: Sendable {
     /// Local identifiers of assets in the "Selfies" smart album, used to tag
     /// observations as selfies without any ML guesswork.
     func selfieAssetIDs() -> Set<String>
+    /// The user's regular (non-smart) albums that contain at least one photo,
+    /// for the album-scoped analysis mode.
+    func fetchUserAlbums() -> [PhotoLibraryService.AlbumInfo]
 }
 
 struct PhotoLibraryService: PhotoLibraryProviding {
+    struct AlbumInfo: Identifiable, Sendable, Equatable {
+        let id: String
+        let title: String
+        let photoCount: Int
+    }
+
     func currentAuthorizationStatus() -> PHAuthorizationStatus {
         PHPhotoLibrary.authorizationStatus(for: .readWrite)
     }
@@ -31,8 +40,46 @@ struct PhotoLibraryService: PhotoLibraryProviding {
         if let start = scope.startDate {
             predicates.append(NSPredicate(format: "creationDate >= %@", start as NSDate))
         }
+        if let end = scope.endDate {
+            predicates.append(NSPredicate(format: "creationDate <= %@", end as NSDate))
+        }
         options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+
+        if let albumID = scope.albumIdentifier {
+            let collections = PHAssetCollection.fetchAssetCollections(
+                withLocalIdentifiers: [albumID], options: nil
+            )
+            guard let album = collections.firstObject else {
+                // Album was deleted/renamed since it was picked — fetch
+                // nothing rather than silently falling back to the library.
+                let emptyOptions = PHFetchOptions()
+                emptyOptions.predicate = NSPredicate(value: false)
+                return PHAsset.fetchAssets(with: emptyOptions)
+            }
+            return PHAsset.fetchAssets(in: album, options: options)
+        }
+
         return PHAsset.fetchAssets(with: options)
+    }
+
+    func fetchUserAlbums() -> [AlbumInfo] {
+        let collections = PHAssetCollection.fetchAssetCollections(
+            with: .album, subtype: .albumRegular, options: nil
+        )
+        let imageOptions = PHFetchOptions()
+        imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+
+        var albums: [AlbumInfo] = []
+        collections.enumerateObjects { collection, _, _ in
+            let count = PHAsset.fetchAssets(in: collection, options: imageOptions).count
+            guard count > 0 else { return }
+            albums.append(AlbumInfo(
+                id: collection.localIdentifier,
+                title: collection.localizedTitle ?? "Untitled Album",
+                photoCount: count
+            ))
+        }
+        return albums.sorted { $0.photoCount > $1.photoCount }
     }
 
     func selfieAssetIDs() -> Set<String> {

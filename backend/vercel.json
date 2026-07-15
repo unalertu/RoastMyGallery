@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/deep-vision.js": {
+      "maxDuration": 60
+    }
+  }
+}

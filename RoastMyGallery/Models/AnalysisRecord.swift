@@ -16,4 +16,10 @@ struct AnalysisRecord: Codable, Identifiable, Equatable, Hashable, Sendable {
     /// the backend (only `stats` is — see the PhotoStats privacy contract).
     /// Optional so records persisted before this field decode as nil.
     var categoryPhotoIndex: [String: [String]]?
+
+    /// Set only on Deep Vision entries: the photo-level commentary from the
+    /// consented batch. Its presence is what marks a record as a Deep Vision
+    /// run in History (nil = regular stats-based analysis, and records
+    /// persisted before this field decode as nil).
+    var deepVision: DeepVisionResult?
 }

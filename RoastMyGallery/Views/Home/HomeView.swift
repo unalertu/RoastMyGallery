@@ -35,7 +35,11 @@ struct HomeView: View {
             }
             .foregroundStyle(Theme.Colors.textPrimary)
             .navigationDestination(for: AnalysisRecord.self) { record in
-                InsightView(record: record)
+                if record.deepVision != nil {
+                    DeepVisionRecordView(record: record)
+                } else {
+                    InsightView(record: record)
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
         }

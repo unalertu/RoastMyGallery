@@ -25,7 +25,11 @@ struct HistoryView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(Theme.Colors.background, for: .navigationBar)
             .navigationDestination(for: AnalysisRecord.self) { record in
-                InsightView(record: record)
+                if record.deepVision != nil {
+                    DeepVisionRecordView(record: record)
+                } else {
+                    InsightView(record: record)
+                }
             }
         }
         .tint(Theme.Colors.accent)
@@ -70,6 +74,11 @@ private struct HistoryRow: View {
                     Text(record.createdAt.formatted(date: .abbreviated, time: .omitted))
                     Text("·")
                     Text(record.persona.displayName)
+                    if record.deepVision != nil {
+                        Text("·")
+                        Label("Deep Vision", systemImage: "sparkles")
+                            .foregroundStyle(Theme.Colors.accent)
+                    }
                 }
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)

@@ -10,8 +10,9 @@ struct AppEnvironment {
     let deepVision: DeepVisionAnalyzing
 
     /// Real on-device analysis + real insight backend (Gemini via Vercel),
-    /// with the mock as an offline/outage fallback. Deep Vision stays mocked
-    /// until its endpoint exists.
+    /// with the mock as an offline/outage fallback. Deep Vision is real too
+    /// (no offline fallback on purpose — it's a paid upload, so failures
+    /// surface as calm errors instead of canned text).
     static func live() -> AppEnvironment {
         let library = PhotoLibraryService()
         return AppEnvironment(
@@ -22,7 +23,7 @@ struct AppEnvironment {
                 primary: BackendInsightGenerator(), // URL: AppConfig.backendBaseURL
                 fallback: MockInsightGenerator(simulatedDelay: .seconds(0.6))
             ),
-            deepVision: MockDeepVisionService()
+            deepVision: BackendDeepVisionService()
         )
     }
 }

@@ -62,7 +62,8 @@ struct ScanProgressView: View {
 }
 
 /// Determinate soft ring with a percentage in the center.
-private struct ProgressRing: View {
+/// Shared with the Deep Vision flow (photo preparation progress).
+struct ProgressRing: View {
     let fraction: Double
 
     var body: some View {
@@ -85,7 +86,8 @@ private struct ProgressRing: View {
 }
 
 /// Indeterminate variant: a short arc drifting slowly around the ring.
-private struct DriftingRing: View {
+/// Shared with the Deep Vision flow (upload + vision-model wait).
+struct DriftingRing: View {
     @State private var rotation = 0.0
 
     var body: some View {

@@ -227,10 +227,36 @@ const isCategoryCount = (v) =>
   Object.keys(v).length === 2 &&
   isShortString(v.category, 100) && isCount(v.count);
 
+/**
+ * `AnalysisScope` (see RoastMyGallery/Models/AnalysisScope.swift) encodes as
+ * a keyed object: `{kind:"fullHistory"}`, `{kind:"lastThreeMonths"}`,
+ * `{kind:"dateRange", start, end, label}` (ISO 8601 date strings), or
+ * `{kind:"album", identifier, name}`. Legacy plain strings ("fullHistory" /
+ * "lastThreeMonths") are still accepted for older app builds still in the wild.
+ */
+const isValidScope = (v) => {
+  if (v === "lastThreeMonths" || v === "fullHistory") return true;
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  const keys = Object.keys(v);
+  switch (v.kind) {
+    case "fullHistory":
+    case "lastThreeMonths":
+      return keys.length === 1;
+    case "dateRange":
+      return keys.length === 4 &&
+        isShortString(v.start, 40) && isShortString(v.end, 40) && isShortString(v.label, 80);
+    case "album":
+      return keys.length === 3 &&
+        isShortString(v.identifier, 200) && isShortString(v.name, 200);
+    default:
+      return false;
+  }
+};
+
 /** field name → predicate. Every field is required; unknown fields rejected. */
 const STATS_SCHEMA = {
   generatedAt: (v) => isShortString(v, 40),
-  scope: (v) => v === "lastThreeMonths" || v === "fullHistory",
+  scope: isValidScope,
   totalPhotos: isCount,
   analyzedPhotos: isCount,
   selfieCount: isCount,

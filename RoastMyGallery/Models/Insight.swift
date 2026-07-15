@@ -51,11 +51,22 @@ struct Insight: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// Pro-tier only: LLM commentary on one explicitly user-selected photo.
-struct PhotoCommentary: Codable, Sendable, Equatable, Identifiable {
-    var id: UUID
-    /// Local asset identifier so the UI can show commentary next to the photo.
-    /// Assigned client-side after the response comes back; never sent upstream.
-    let assetID: String
-    let comment: String
+/// Pro-tier only: the output of one Deep Vision batch — an overall summary
+/// line plus photo-level commentary segments. Persisted inside the run's
+/// `AnalysisRecord` (device-only, like everything else in history).
+struct DeepVisionResult: Codable, Sendable, Hashable {
+    /// One overall observation about the whole batch.
+    let summary: String
+    let segments: [Segment]
+
+    /// One commentary beat about specific photo(s) in the batch.
+    struct Segment: Codable, Sendable, Hashable, Identifiable {
+        var id: UUID
+        /// Local asset identifiers of the photo(s) this segment is about.
+        /// Mapped client-side from the backend's batch indexes — asset IDs are
+        /// never uploaded. Empty when the mapping didn't resolve (the segment
+        /// still renders as a text-only card).
+        let assetIDs: [String]
+        let text: String
+    }
 }

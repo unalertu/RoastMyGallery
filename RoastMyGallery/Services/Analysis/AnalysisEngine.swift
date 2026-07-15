@@ -67,11 +67,20 @@ protocol DeepVisionAnalyzing: Sendable {
     /// Maximum number of photos a single batch may contain.
     var maxBatchSize: Int { get }
 
-    /// - Parameter photos: JPEG data for each consented photo, keyed by local
-    ///   asset ID (the ID is used to map results back and is NOT uploaded).
-    /// - Precondition: caller has verified Pro entitlement AND recorded
-    ///   explicit per-batch consent (see `DeepAnalysisConsentView`).
-    func analyze(photos: [(assetID: String, jpegData: Data)], persona: Persona) async throws -> [PhotoCommentary]
+    /// - Parameter photos: already-downscaled JPEG data for each consented
+    ///   photo, keyed by local asset ID (the ID is used to map results back
+    ///   and is NOT uploaded — only pixel data and the persona leave the
+    ///   device).
+    /// - Parameter appUserID: RevenueCat App User ID, passed to the backend so
+    ///   it can deduct the 5-credit charge *after* a successful batch. Ignored
+    ///   by mocks (which don't charge).
+    /// - Precondition: caller has verified affordability (UX gate) AND
+    ///   recorded explicit per-batch consent (see `DeepAnalysisConsentView`).
+    func analyze(
+        photos: [(assetID: String, jpegData: Data)],
+        persona: Persona,
+        appUserID: String
+    ) async throws -> DeepVisionResult
 }
 
 enum AnalysisError: LocalizedError {

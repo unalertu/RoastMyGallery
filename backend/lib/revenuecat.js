@@ -84,6 +84,56 @@ export async function adjustCredits(appUserId, delta) {
   return { ok: true };
 }
 
+/**
+ * Reads a customer's current CRD balance.
+ *
+ * Used as a pre-flight gate by paid endpoints that deduct AFTER success
+ * (e.g. api/deep-vision.js): checking the balance before the expensive LLM
+ * call means an unaffordable request never burns a Gemini call — while the
+ * actual deduction still only happens once a result exists.
+ *
+ * Returns the integer balance, or null when it can't be determined (env not
+ * configured, RevenueCat unreachable, unknown customer). Callers should treat
+ * null as "don't block" — fail-open, consistent with the rest of this module;
+ * the post-success deduction remains the authoritative gate.
+ */
+export async function getCreditBalance(appUserId) {
+  const secret = process.env.REVENUECAT_SECRET_KEY;
+  const projectId = process.env.REVENUECAT_PROJECT_ID;
+  if (!secret || !projectId) return null;
+  if (typeof appUserId !== "string" || appUserId.length === 0) return null;
+
+  const url =
+    `${RC_API_BASE}/projects/${encodeURIComponent(projectId)}` +
+    `/customers/${encodeURIComponent(appUserId)}/virtual_currencies`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+  } catch (error) {
+    console.error("RevenueCat balance fetch failed:", error);
+    return null;
+  }
+  if (!response.ok) return null;
+
+  try {
+    const data = await response.json();
+    // v2 list shape: { items: [{ ..., balance }] } where each item identifies
+    // its currency by code. Parse defensively across minor shape variations.
+    const items = Array.isArray(data.items) ? data.items : [];
+    const entry = items.find(
+      (item) =>
+        item?.virtual_currency?.code === CREDIT_CURRENCY_CODE ||
+        item?.code === CREDIT_CURRENCY_CODE
+    );
+    return Number.isInteger(entry?.balance) ? entry.balance : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Convenience: spend `amount` (>0) credits. */
 export function spendCredits(appUserId, amount) {
   return adjustCredits(appUserId, -Math.abs(amount));

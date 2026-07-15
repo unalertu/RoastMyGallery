@@ -1,21 +1,28 @@
 # Roast My Gallery — backend
 
-One Vercel serverless function that turns the app's anonymous `PhotoStats`
-JSON into an LLM-written insight via the Google Gemini API
-(`gemini-3.1-flash-lite`, free tier — note `gemini-2.5-flash-lite` is
-retired for new API projects and returns 404).
+Vercel serverless functions wrapping the Google Gemini API:
+- `/api/insight` turns the app's anonymous `PhotoStats` JSON into an
+  LLM-written insight (`gemini-3.1-flash-lite`, free tier — note
+  `gemini-2.5-flash-lite` is retired for new API projects and returns 404).
+- `/api/deep-vision` (Pro, 5 credits) analyzes an explicitly consented,
+  client-downscaled photo batch with the vision model `gemini-3.5-flash`
+  (verified via ListModels 2026-07-15; plain `gemini-3.1-flash` 404s for
+  this key). Images are processed in-memory and discarded — never stored,
+  never logged.
 
 ```
 backend/
-├── api/insight.js    # POST /api/insight — gates, validation, Gemini call
-├── lib/prompts.js    # persona prompts + model ID — edit here to tune tone
-├── lib/guard.js      # abuse gates: app secret, per-IP limit, daily cap
-├── package.json      # zero dependencies (built-in fetch)
-└── .env.example      # GEMINI_API_KEY template
+├── api/insight.js      # POST /api/insight — gates, validation, Gemini call
+├── api/deep-vision.js  # POST /api/deep-vision — photo batch → vision LLM
+├── api/spend.js        # POST /api/spend — RevenueCat credit deduction
+├── api/starter-grant.js# POST /api/starter-grant — one-time free credits
+├── lib/prompts.js      # persona prompts + model IDs — edit here to tune tone
+├── lib/guard.js        # abuse gates: app secret, per-IP limit, daily cap
+├── lib/revenuecat.js   # CRD balance read + signed adjustments (secret key)
+├── vercel.json         # maxDuration: 60 for the (slow) vision endpoint
+├── package.json        # zero dependencies (built-in fetch)
+└── .env.example        # GEMINI_API_KEY template
 ```
-
-No `vercel.json` needed — Vercel auto-detects `api/*.js` as serverless
-functions with zero config.
 
 ## API
 
@@ -40,6 +47,27 @@ is set (see below).
 //         429 rate limited (reason: "rate_limited" | "daily_cap", or Gemini) ·
 //         500 missing API key · 502 Gemini unreachable/unusable response
 { "error": "human-readable message" }
+```
+
+`POST /api/deep-vision` — same `X-App-Secret` gate. The Pro tier.
+
+```jsonc
+// request (images: base64 JPEGs, already downscaled client-side; max 30,
+// ≤450k base64 chars each, ≤3.9M total)
+{ "appUserId": "rc-app-user-id", "persona": "roast" | "analyst",
+  "locale": "tr_TR", "images": ["<base64>", "..."], "schemaVersion": 1 }
+// 200 response — photoIndexes refer to positions in the uploaded array
+{
+  "summary": "One overall observation about the batch.",
+  "segments": [
+    { "photoIndexes": [0], "text": "About photo 0." },
+    { "photoIndexes": [3, 7], "text": "A pattern across photos 3 and 7." }
+  ],
+  "generatedAt": "2026-07-15T18:00:00Z"
+}
+// extra errors: 402 insufficient credits (reason: "insufficient_credits",
+// checked read-only against RevenueCat BEFORE the Gemini call; the 5-credit
+// deduction itself happens only AFTER a successful result)
 ```
 
 The first line of `insightText` is the headline; the iOS client splits it off.
