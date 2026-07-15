@@ -348,7 +348,9 @@ private struct AlbumPickerSheet: View {
                                 Text("\(album.photoCount)")
                                     .foregroundStyle(Theme.Colors.textSecondary)
                             }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                     .listStyle(.plain)
                 }

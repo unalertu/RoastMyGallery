@@ -63,22 +63,56 @@ struct PhotoLibraryService: PhotoLibraryProviding {
     }
 
     func fetchUserAlbums() -> [AlbumInfo] {
-        let collections = PHAssetCollection.fetchAssetCollections(
-            with: .album, subtype: .albumRegular, options: nil
-        )
         let imageOptions = PHFetchOptions()
         imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
 
         var albums: [AlbumInfo] = []
-        collections.enumerateObjects { collection, _, _ in
+        var seenIDs = Set<String>()
+
+        // 1. User-created regular albums
+        let userCollections = PHAssetCollection.fetchAssetCollections(
+            with: .album, subtype: .albumRegular, options: nil
+        )
+        userCollections.enumerateObjects { collection, _, _ in
             let count = PHAsset.fetchAssets(in: collection, options: imageOptions).count
             guard count > 0 else { return }
+            let id = collection.localIdentifier
+            guard seenIDs.insert(id).inserted else { return }
             albums.append(AlbumInfo(
-                id: collection.localIdentifier,
+                id: id,
                 title: collection.localizedTitle ?? "Untitled Album",
                 photoCount: count
             ))
         }
+
+        // 2. Smart albums (Favorites, Selfies, Screenshots, Recents, etc.)
+        let smartSubtypes: [PHAssetCollectionSubtype] = [
+            .smartAlbumFavorites,
+            .smartAlbumSelfPortraits,
+            .smartAlbumScreenshots,
+            .smartAlbumPanoramas,
+            .smartAlbumLivePhotos,
+            .smartAlbumDepthEffect,
+            .smartAlbumBursts,
+            .smartAlbumRecentlyAdded
+        ]
+        for subtype in smartSubtypes {
+            let smartCollections = PHAssetCollection.fetchAssetCollections(
+                with: .smartAlbum, subtype: subtype, options: nil
+            )
+            smartCollections.enumerateObjects { collection, _, _ in
+                let count = PHAsset.fetchAssets(in: collection, options: imageOptions).count
+                guard count > 0 else { return }
+                let id = collection.localIdentifier
+                guard seenIDs.insert(id).inserted else { return }
+                albums.append(AlbumInfo(
+                    id: id,
+                    title: collection.localizedTitle ?? "Smart Album",
+                    photoCount: count
+                ))
+            }
+        }
+
         return albums.sorted { $0.photoCount > $1.photoCount }
     }
 

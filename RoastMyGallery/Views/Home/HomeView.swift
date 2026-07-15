@@ -23,6 +23,8 @@ struct HomeView: View {
                         if let latest = history.latest {
                             latestCard(latest)
 
+                            quickStatsDashboard(latest.stats)
+
                             Button("New Analysis") { startScan() }
                                 .buttonStyle(PrimaryButtonStyle())
                         } else {
@@ -130,6 +132,47 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Quick Stats Dashboard
+
+    /// 2×2 dashboard summarising key numbers from the latest scan.
+    private func quickStatsDashboard(_ stats: PhotoStats) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+            Text("Quick Stats")
+                .font(Theme.Typography.headline)
+
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: Theme.Spacing.m),
+                          GridItem(.flexible())],
+                spacing: Theme.Spacing.m
+            ) {
+                StatCard(
+                    icon: "photo.on.rectangle.angled",
+                    value: "\(stats.totalPhotos)",
+                    label: "Total Photos",
+                    fill: Theme.Colors.cardCycle[0]
+                )
+                StatCard(
+                    icon: "person.crop.circle",
+                    value: "\(Int(stats.selfieRatio * 100))%",
+                    label: "Selfie Ratio",
+                    fill: Theme.Colors.cardCycle[1]
+                )
+                StatCard(
+                    icon: "rectangle.on.rectangle",
+                    value: "\(stats.screenshotCount)",
+                    label: "Screenshots",
+                    fill: Theme.Colors.cardCycle[2]
+                )
+                StatCard(
+                    icon: "heart.fill",
+                    value: "\(stats.favoriteCount)",
+                    label: "Favorites",
+                    fill: Theme.Colors.cardCycle[3]
+                )
+            }
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: Theme.Spacing.l) {
             EmptyStateView(
@@ -161,5 +204,35 @@ struct PersonaChip: View {
         .padding(.horizontal, Theme.Spacing.s + Theme.Spacing.xs)
         .padding(.vertical, Theme.Spacing.xs + 2)
         .background(Theme.Colors.persona(persona).opacity(0.5), in: Capsule())
+    }
+}
+
+/// Single stat tile used in the Quick Stats dashboard on Home.
+struct StatCard: View {
+    let icon: String
+    let value: String
+    let label: String
+    let fill: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.Colors.textPrimary.opacity(0.55))
+
+            Spacer(minLength: 0)
+
+            Text(value)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.Colors.textPrimary)
+
+            Text(label.uppercased())
+                .font(Theme.Typography.label)
+                .tracking(0.5)
+                .foregroundStyle(Theme.Colors.textPrimary.opacity(0.55))
+        }
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
+        .padding(Theme.Spacing.m)
+        .background(fill.opacity(0.5), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 }

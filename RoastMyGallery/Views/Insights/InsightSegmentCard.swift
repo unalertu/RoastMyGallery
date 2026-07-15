@@ -26,11 +26,14 @@ struct InsightSegmentCard: View {
                 .lineSpacing(Theme.Typography.bodyLineSpacing)
 
             if let thumbnail {
+                let isLandscape = thumbnail.size.width > thumbnail.size.height
                 Image(uiImage: thumbnail)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: isLandscape ? .fit : .fill)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 180)
+                    .frame(height: isLandscape ? nil : 220, alignment: .center)
+                    .frame(maxHeight: isLandscape ? 220 : 220)
+                    .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                     .contentShape(Rectangle())
                     .transition(.opacity)
