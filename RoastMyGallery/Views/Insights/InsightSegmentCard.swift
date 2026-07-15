@@ -17,6 +17,7 @@ struct InsightSegmentCard: View {
     let assetIDs: [String]
 
     @State private var thumbnail: UIImage?
+    @State private var zoomedPhoto: ZoomablePhoto?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
@@ -31,11 +32,14 @@ struct InsightSegmentCard: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 180)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                    .contentShape(Rectangle())
                     .transition(.opacity)
+                    .onTapGesture { zoomedPhoto = ZoomablePhoto(image: thumbnail, assetID: assetIDs.first) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .themedCard()
+        .photoZoom(photo: $zoomedPhoto)
         .task(id: assetIDs) {
             guard thumbnail == nil, !assetIDs.isEmpty else { return }
             guard let image = await SegmentThumbnailLoader.thumbnail(for: assetIDs) else { return }

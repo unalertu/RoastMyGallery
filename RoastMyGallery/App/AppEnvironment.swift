@@ -9,20 +9,17 @@ struct AppEnvironment {
     let insightGenerator: InsightGenerating
     let deepVision: DeepVisionAnalyzing
 
-    /// Real on-device analysis + real insight backend (Gemini via Vercel),
-    /// with the mock as an offline/outage fallback. Deep Vision is real too
-    /// (no offline fallback on purpose — it's a paid upload, so failures
-    /// surface as calm errors instead of canned text).
+    /// Real on-device analysis + real insight backend (Gemini via Vercel).
+    /// No offline/outage fallback — a failed insight surfaces as a calm error
+    /// with a "Try Again" retry, the same as Deep Vision, rather than silently
+    /// serving canned text that looks like a real (but low-quality) result.
     static func live() -> AppEnvironment {
         let library = PhotoLibraryService()
         return AppEnvironment(
             photoLibrary: library,
             analyzer: OnDeviceAnalyzer(library: library),
             aggregator: StatsAggregator(),
-            insightGenerator: FallbackInsightGenerator(
-                primary: BackendInsightGenerator(), // URL: AppConfig.backendBaseURL
-                fallback: MockInsightGenerator(simulatedDelay: .seconds(0.6))
-            ),
+            insightGenerator: BackendInsightGenerator(), // URL: AppConfig.backendBaseURL
             deepVision: BackendDeepVisionService()
         )
     }

@@ -12,9 +12,7 @@
 		111E9016FE9EC2FA036869A6 /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D33D9C0CDFF6EF1183BD8F /* ShareCardView.swift */; };
 		124DA84C12C42487E3CC3E66 /* DeepAnalysisConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD67CCE39384419E1D4145F6 /* DeepAnalysisConsentView.swift */; };
 		153B798BBD3DC1A2F8C49E07 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DA3232E5AA76E4B1C6A6618 /* HistoryView.swift */; };
-		207090252E50BA6BAD281853 /* MockInsightGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05939C140FD0AE3A00C3ED9C /* MockInsightGenerator.swift */; };
 		2162335D78235AD8F47A399D /* PhotoObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1CA7764A5164F125384325C /* PhotoObservation.swift */; };
-		22F82C6A29D24157CBADB019 /* FallbackInsightGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766EE5D6A97C3933637E7978 /* FallbackInsightGenerator.swift */; };
 		2B0D1AB68B31C2812B3D98DF /* AltShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 488ECB643B7E303D3BD26771 /* AltShareCardView.swift */; };
 		2B47D6B577124515C484EC99 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B274EEF63DC04E59D165CE6A /* AppEnvironment.swift */; };
 		30FA71D948D160D35108DEEB /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119970B71BED79F8605050D5 /* PurchaseManager.swift */; };
@@ -33,6 +31,7 @@
 		6DFFE9C3A73648059BCD8143 /* DeepVisionResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3C2167549E57603AEE9ABC /* DeepVisionResultsView.swift */; };
 		798FFD683CD5BD6135BB4A4B /* InsightSegmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6569BB128347CC28E1F8C8 /* InsightSegmentCard.swift */; };
 		86FD3BA59A1F338FA0357C01 /* RoastMyGalleryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949DD5F88A3B3B9EE9AA84A7 /* RoastMyGalleryApp.swift */; };
+		94863DFDB962C7472FACDB01 /* PhotoZoomOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6C9DD77212A4EBE0383D1E7 /* PhotoZoomOverlay.swift */; };
 		9BF960BC63FC986B2463BE60 /* Insight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CD9124F8662BEA53F54CFA4 /* Insight.swift */; };
 		9DABD473C0C175870929DAE4 /* DataTransparencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADDFD516F4C4D7B79876CB5 /* DataTransparencyView.swift */; };
 		A07EF1E1F4DECCDECB649EF0 /* ShareCardRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A21EF81F47D2C2CDA30C99D /* ShareCardRenderer.swift */; };
@@ -59,7 +58,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		05939C140FD0AE3A00C3ED9C /* MockInsightGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInsightGenerator.swift; sourceTree = "<group>"; };
 		0E3C2167549E57603AEE9ABC /* DeepVisionResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepVisionResultsView.swift; sourceTree = "<group>"; };
 		119970B71BED79F8605050D5 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		186BCF0310CD1A85AAA53D7B /* ScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanViewModel.swift; sourceTree = "<group>"; };
@@ -78,7 +76,6 @@
 		6A4D6C5F3365AE59E31ED0DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6D67000B622301F8B4454B6F /* OnDeviceAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceAnalyzer.swift; sourceTree = "<group>"; };
 		6E5325218E59A270BAD9AA81 /* PhotoStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStats.swift; sourceTree = "<group>"; };
-		766EE5D6A97C3933637E7978 /* FallbackInsightGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackInsightGenerator.swift; sourceTree = "<group>"; };
 		76C44CC07D629C0F3E6AB53B /* Persona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persona.swift; sourceTree = "<group>"; };
 		7B9014CEB0CD998D22C2851A /* AnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisEngine.swift; sourceTree = "<group>"; };
 		7BECBA73418735B926A76162 /* DeepVisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepVisionService.swift; sourceTree = "<group>"; };
@@ -107,6 +104,7 @@
 		C2830F017D796F5451DB291F /* PurchaseSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSuccessView.swift; sourceTree = "<group>"; };
 		CADDFD516F4C4D7B79876CB5 /* DataTransparencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataTransparencyView.swift; sourceTree = "<group>"; };
 		CC595653DC4ED2268014D16F /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		D6C9DD77212A4EBE0383D1E7 /* PhotoZoomOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoZoomOverlay.swift; sourceTree = "<group>"; };
 		E83F522555EE27A570E35C90 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		F0932262E861310A370ED6FB /* AltShareCardRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AltShareCardRenderer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -302,6 +300,7 @@
 			isa = PBXGroup;
 			children = (
 				A9621FDF6B5964282E602ED2 /* EmptyStateView.swift */,
+				D6C9DD77212A4EBE0383D1E7 /* PhotoZoomOverlay.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -341,8 +340,6 @@
 			children = (
 				7DB8E7151194D6E7C9FF4672 /* BackendInsightGenerator.swift */,
 				7BECBA73418735B926A76162 /* DeepVisionService.swift */,
-				766EE5D6A97C3933637E7978 /* FallbackInsightGenerator.swift */,
-				05939C140FD0AE3A00C3ED9C /* MockInsightGenerator.swift */,
 			);
 			path = Insights;
 			sourceTree = "<group>";
@@ -433,7 +430,6 @@
 				ACB803AD40E8A28950A77B51 /* DeepVisionService.swift in Sources */,
 				CD217EAE90474311A93500BD /* DesignSystem.swift in Sources */,
 				6C6EAF4E11C244AE37CE6A07 /* EmptyStateView.swift in Sources */,
-				22F82C6A29D24157CBADB019 /* FallbackInsightGenerator.swift in Sources */,
 				EF7A25CCD9255CF5663F52BC /* GalleryStatsView.swift in Sources */,
 				153B798BBD3DC1A2F8C49E07 /* HistoryView.swift in Sources */,
 				F036C3744BBD9C650D925ED7 /* HomeView.swift in Sources */,
@@ -441,7 +437,6 @@
 				9BF960BC63FC986B2463BE60 /* Insight.swift in Sources */,
 				798FFD683CD5BD6135BB4A4B /* InsightSegmentCard.swift in Sources */,
 				EB4E741DBC923200E8CA383B /* InsightView.swift in Sources */,
-				207090252E50BA6BAD281853 /* MockInsightGenerator.swift in Sources */,
 				5C7E61CDC63A426F0AC90986 /* OnDeviceAnalyzer.swift in Sources */,
 				5B0867F0F89AADB255575AA2 /* PaywallView.swift in Sources */,
 				E1303E691547926E55A19BBE /* PermissionView.swift in Sources */,
@@ -450,6 +445,7 @@
 				42D833FEE4D016A3B745D9AC /* PhotoLibraryService.swift in Sources */,
 				2162335D78235AD8F47A399D /* PhotoObservation.swift in Sources */,
 				CD5520A8187AA6CB836A9673 /* PhotoStats.swift in Sources */,
+				94863DFDB962C7472FACDB01 /* PhotoZoomOverlay.swift in Sources */,
 				30FA71D948D160D35108DEEB /* PurchaseManager.swift in Sources */,
 				C1F4E73BA1B445F260492809 /* PurchaseSuccessView.swift in Sources */,
 				042954D902F5FA08E8698AF8 /* ReminderScheduler.swift in Sources */,

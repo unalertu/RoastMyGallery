@@ -55,6 +55,7 @@ private struct DeepVisionSegmentCard: View {
     let fill: Color
 
     @State private var thumbnails: [String: UIImage] = [:]
+    @State private var zoomedPhoto: ZoomablePhoto?
 
     private struct ResolvedImage: Identifiable {
         let id: String
@@ -86,6 +87,8 @@ private struct DeepVisionSegmentCard: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: images.count == 1 ? 180 : 110)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                            .contentShape(Rectangle())
+                            .onTapGesture { zoomedPhoto = ZoomablePhoto(image: item.image, assetID: item.id) }
                     }
                 }
                 .transition(.opacity)
@@ -94,6 +97,7 @@ private struct DeepVisionSegmentCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.Spacing.m)
         .background(fill, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
+        .photoZoom(photo: $zoomedPhoto)
         .task(id: segment.id) {
             // History path: resolve whatever the in-memory previews don't cover.
             for id in displayAssetIDs where previews[id] == nil && thumbnails[id] == nil {

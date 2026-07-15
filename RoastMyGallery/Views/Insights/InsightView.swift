@@ -26,7 +26,7 @@ struct InsightView: View {
                     if record.insight.isPreview == true {
                         Label(
                             "Preview insight — written on your device while the AI writer takes a breather.",
-                            systemImage: "sparkles.slash"
+                            systemImage: "wand.and.stars.inverse"
                         )
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
