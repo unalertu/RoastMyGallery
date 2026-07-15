@@ -31,7 +31,7 @@ final class PurchaseManager {
 
     /// RevenueCat public SDK key. Safe to ship in the binary (it can only read
     /// and make purchases, never adjust balances). Replace with the real key.
-    static let publicAPIKey = "REVENUECAT_PUBLIC_KEY_PLACEHOLDER"
+    static let publicAPIKey = "test_yaBAvZoAxrXPEqVNSzedLwOlNfN"
 
     /// Virtual Currency code configured in RevenueCat (Product Catalog →
     /// Virtual Currencies). Must match exactly.
@@ -87,6 +87,13 @@ final class PurchaseManager {
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInFlight = false
     var lastError: String?
+
+    /// Populated after a successful purchase so the UI can show a celebration.
+    struct PurchaseResult {
+        let creditsAdded: Int
+        let newBalance: Int
+    }
+    var lastPurchaseResult: PurchaseResult?
 
     /// Stable RevenueCat App User ID for this install. Anonymous by default;
     /// the backend uses it to target the right customer for spends/grants.
@@ -192,14 +199,27 @@ final class PurchaseManager {
         purchaseInFlight = true
         defer { purchaseInFlight = false }
         lastError = nil
+        lastPurchaseResult = nil
         do {
             let result = try await Purchases.shared.purchase(package: package)
             guard !result.userCancelled else { return }
             updateSubscription(from: result.customerInfo)
             // RevenueCat applies the credit grant server-side; drop the stale
             // cache and re-read.
+            let balanceBefore = creditBalance
             Purchases.shared.invalidateVirtualCurrenciesCache()
             await refreshBalance()
+            let creditsAdded = creditBalance - balanceBefore
+            // Fallback: if the delta is zero (race / cache), use the product's
+            // advertised amount so the celebration still makes sense.
+            let productID = package.storeProduct.productIdentifier
+            let displayCredits = creditsAdded > 0
+                ? creditsAdded
+                : (Self.advertisedCredits(forProductID: productID) ?? creditsAdded)
+            lastPurchaseResult = PurchaseResult(
+                creditsAdded: displayCredits,
+                newBalance: creditBalance
+            )
         } catch {
             lastError = "Purchase failed: \(error.localizedDescription)"
         }

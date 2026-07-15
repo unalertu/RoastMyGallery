@@ -29,6 +29,10 @@ struct PaywallView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showSuccess = false
+    @State private var successCredits = 0
+    @State private var successBalance = 0
+
     private var packages: [Package] {
         purchaseManager.offerings?.current?.availablePackages ?? []
     }
@@ -85,17 +89,34 @@ struct PaywallView: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
-            .onChange(of: purchaseManager.creditBalance) { _, newBalance in
-                // Once the user can afford what they came for, get out of the way.
-                switch context {
-                case .analysis where newBalance >= PurchaseManager.analysisCost:
-                    dismiss()
-                case .deepVision where newBalance >= PurchaseManager.deepVisionCost:
-                    dismiss()
-                default:
-                    break
+            .onChange(of: purchaseManager.lastPurchaseResult?.newBalance) { _, _ in
+                // Show the celebration screen when a purchase succeeds.
+                if let result = purchaseManager.lastPurchaseResult {
+                    successCredits = result.creditsAdded
+                    successBalance = result.newBalance
+                    showSuccess = true
+                    purchaseManager.lastPurchaseResult = nil
                 }
             }
+        }
+        .fullScreenCover(isPresented: $showSuccess) {
+            PurchaseSuccessView(
+                creditsAdded: successCredits,
+                newBalance: successBalance,
+                onDismiss: {
+                    showSuccess = false
+                    // For context-specific flows, dismiss paywall too.
+                    switch context {
+                    case .analysis where purchaseManager.canAfford(PurchaseManager.analysisCost),
+                         .deepVision where purchaseManager.canAfford(PurchaseManager.deepVisionCost):
+                        dismiss()
+                    case .general:
+                        break       // stay on paywall so user can buy more
+                    default:
+                        break
+                    }
+                }
+            )
         }
         .tint(Theme.Colors.accent)
         .foregroundStyle(Theme.Colors.textPrimary)

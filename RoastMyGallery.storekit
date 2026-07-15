@@ -5,59 +5,41 @@
   ],
   "products" : [
     {
-      "displayPrice" : "9.99",
+      "displayPrice" : "0.99",
       "familyShareable" : false,
-      "internalID" : "8C0F5E1A-0000-4000-8000-000000000002",
+      "internalID" : "8C0F5E1A-0000-4000-8000-000000000010",
       "localizations" : [
         {
-          "description" : "Lifetime access to all Pro features.",
-          "displayName" : "Pro — Lifetime",
+          "description" : "Buy 10 Credits for analyses",
+          "displayName" : "10 Credits",
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.example.roastmygallery.pro.lifetime",
-      "referenceName" : "Pro Lifetime",
-      "type" : "NonConsumable"
+      "productID" : "credits_pack_10",
+      "referenceName" : "10 Credits",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "8C0F5E1A-0000-4000-8000-000000000050",
+      "localizations" : [
+        {
+          "description" : "Buy 50 Credits for analyses",
+          "displayName" : "50 Credits",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "credits_pack_50",
+      "referenceName" : "50 Credits",
+      "type" : "Consumable"
     }
   ],
   "settings" : {
 
   },
   "subscriptionGroups" : [
-    {
-      "id" : "8C0F5E1A-0000-4000-8000-000000000003",
-      "localizations" : [
 
-      ],
-      "name" : "Pro",
-      "subscriptions" : [
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "1.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "8C0F5E1A-0000-4000-8000-000000000004",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "All Pro features, billed monthly.",
-              "displayName" : "Pro — Monthly",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "com.example.roastmygallery.pro.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Pro Monthly",
-          "subscriptionGroupID" : "8C0F5E1A-0000-4000-8000-000000000003",
-          "type" : "RecurringSubscription"
-        }
-      ]
-    }
   ],
   "version" : {
     "major" : 3,

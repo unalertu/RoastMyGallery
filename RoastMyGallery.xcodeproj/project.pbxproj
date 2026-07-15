@@ -39,6 +39,7 @@
 		ACB803AD40E8A28950A77B51 /* DeepVisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BECBA73418735B926A76162 /* DeepVisionService.swift */; };
 		B87EE2E01944CE1628E2B1BE /* AnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B9014CEB0CD998D22C2851A /* AnalysisEngine.swift */; };
 		BCC3513D0EAA8430919A1266 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A7077996D52B197A46A66326 /* Assets.xcassets */; };
+		C1F4E73BA1B445F260492809 /* PurchaseSuccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2830F017D796F5451DB291F /* PurchaseSuccessView.swift */; };
 		C4A93BC35398F38464108A76 /* CreditBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACDB6282C4A3977F7EC95FAB /* CreditBackendClient.swift */; };
 		CD217EAE90474311A93500BD /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3826898F90BEEA4A4BAA7E /* DesignSystem.swift */; };
 		CD5520A8187AA6CB836A9673 /* PhotoStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5325218E59A270BAD9AA81 /* PhotoStats.swift */; };
@@ -67,7 +68,7 @@
 		488ECB643B7E303D3BD26771 /* AltShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AltShareCardView.swift; sourceTree = "<group>"; };
 		494FBA1DB7DA531D0AA91B80 /* AnalysisHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryStore.swift; sourceTree = "<group>"; };
 		504EBBFC8D04FB9AF897AAF6 /* PersonaPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPickerView.swift; sourceTree = "<group>"; };
-		522831B62BCA1A5546BAE48F /* RoastMyGallery.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RoastMyGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		522831B62BCA1A5546BAE48F /* RoastMyGallery.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RoastMyGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53D33D9C0CDFF6EF1183BD8F /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		5A21EF81F47D2C2CDA30C99D /* ShareCardRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardRenderer.swift; sourceTree = "<group>"; };
 		6A4D6C5F3365AE59E31ED0DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -97,6 +98,7 @@
 		B2569C716A5E93BAAE9C0B44 /* AnalysisRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisRecord.swift; sourceTree = "<group>"; };
 		B274EEF63DC04E59D165CE6A /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		C1CA7764A5164F125384325C /* PhotoObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoObservation.swift; sourceTree = "<group>"; };
+		C2830F017D796F5451DB291F /* PurchaseSuccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSuccessView.swift; sourceTree = "<group>"; };
 		CADDFD516F4C4D7B79876CB5 /* DataTransparencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataTransparencyView.swift; sourceTree = "<group>"; };
 		CC595653DC4ED2268014D16F /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		E83F522555EE27A570E35C90 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 			children = (
 				AD67CCE39384419E1D4145F6 /* DeepAnalysisConsentView.swift */,
 				B042AB0D3E2FBC38A4BE6BE2 /* PaywallView.swift */,
+				C2830F017D796F5451DB291F /* PurchaseSuccessView.swift */,
 				3F7C6F25B10E1EF3610DF7A2 /* RootView.swift */,
 				6F28FF377CE8DA7E9FFD0194 /* History */,
 				48605999B33D800D687C6356 /* Home */,
@@ -366,8 +369,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 2E571D00A92DEBF0888A8D70 /* Build configuration list for PBXProject "RoastMyGallery" */;
 			developmentRegion = en;
@@ -438,6 +439,7 @@
 				2162335D78235AD8F47A399D /* PhotoObservation.swift in Sources */,
 				CD5520A8187AA6CB836A9673 /* PhotoStats.swift in Sources */,
 				30FA71D948D160D35108DEEB /* PurchaseManager.swift in Sources */,
+				C1F4E73BA1B445F260492809 /* PurchaseSuccessView.swift in Sources */,
 				042954D902F5FA08E8698AF8 /* ReminderScheduler.swift in Sources */,
 				86FD3BA59A1F338FA0357C01 /* RoastMyGalleryApp.swift in Sources */,
 				6AC212CC8FEEC1DB0A8A8FCD /* RootView.swift in Sources */,
@@ -581,13 +583,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J7L764Z34L;
 				INFOPLIST_FILE = RoastMyGallery/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.RoastMyGallery;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ertugrul.RoastMyGallery;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.10;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -600,13 +603,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J7L764Z34L;
 				INFOPLIST_FILE = RoastMyGallery/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.RoastMyGallery;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ertugrul.RoastMyGallery;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.10;
 				TARGETED_DEVICE_FAMILY = 1;
