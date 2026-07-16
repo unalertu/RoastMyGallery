@@ -17,6 +17,13 @@ export const GEMINI_MODEL = "gemini-3.1-flash-lite";
  */
 export const GEMINI_VISION_MODEL = "gemini-3.5-flash";
 
+/**
+ * Model for deep (5-credit) insight runs. Text-only like the standard run,
+ * but the premium tier gets the strongest GA flash for its 3× word budget —
+ * same reasoning (and same verified availability) as GEMINI_VISION_MODEL.
+ */
+export const GEMINI_DEEP_MODEL = "gemini-3.5-flash";
+
 export const PERSONA_PROMPTS = {
   roast: `You are a razor-sharp, witty friend looking at a summary of someone's photo library.
 Write a playful ROAST of their photo habits. Tease them mercilessly about their patterns —
@@ -38,7 +45,25 @@ no fake psychology jargon, no diagnoses.`,
  * Each segment is one narrative beat; `category` ties it to a real detected
  * category so the app can show a matching photo from the user's own library.
  */
-const OUTPUT_FORMAT = `Respond with ONLY a JSON object (no markdown fences, no commentary) in exactly this shape:
+function outputFormat(depth) {
+  const beats =
+    depth === "deep"
+      ? `- 12 to 16 segments, total under 700 words. Plain text only — no markdown, no emoji.
+- This is the DEEP analysis this person paid extra for: a long, generous read, not a
+  stretched-out short one. Every beat must earn its place with a distinct observation.
+- Spread the beats wide: cover at least 8 different categories across the piece, and
+  dedicate separate beats to how things changed month over month (categoriesByMonth /
+  photosByMonth), to their shooting hours, to where their photos cluster, and to what
+  they keep (favorites, screenshots).
+- When a beat is genuinely about one subject, prefer tagging it with that subject's
+  category so the app can show a matching photo. But never force a tag onto a beat that
+  is really about timing, habits, mood, or place — a null category is perfectly good,
+  and the timing/curation beats are often the best ones. Let the mix stay natural.`
+      : `- 5 to 7 segments, total under 260 words. Plain text only — no markdown, no emoji.
+- Even for a small or single-month library, write the full 5-7 beats: slow down and
+  find several distinct things to say rather than stopping after two or three.`;
+
+  return `Respond with ONLY a JSON object (no markdown fences, no commentary) in exactly this shape:
 {
   "title": "short punchy title for this person's gallery persona (max 6 words, no quotes inside)",
   "segments": [
@@ -48,14 +73,13 @@ const OUTPUT_FORMAT = `Respond with ONLY a JSON object (no markdown fences, no c
   "shareLine": "your single most quotable observation as a standalone one-liner (max 12 words)"
 }
 Rules for segments:
-- 5 to 7 segments, total under 260 words. Plain text only — no markdown, no emoji.
-- Even for a small or single-month library, write the full 5-7 beats: slow down and
-  find several distinct things to say rather than stopping after two or three.
+${beats}
 - Together they must read as one flowing piece in the persona's voice.
 - Set "category" ONLY to a value from the ALLOWED CATEGORIES list below, and only when
   that segment is clearly about that one subject. Otherwise use null. Never invent categories.
 Ground every observation in the numbers provided. Never invent stats that aren't in the data.
 The stats are anonymous aggregates; you know nothing else about this person.`;
+}
 
 /**
  * Beats don't have to be about a subject/category. The stats carry several
@@ -76,14 +100,16 @@ Aim to spread the beats across several of these lenses instead of stacking them 
  * Category tags the model may attach to a segment — only things that actually
  * appeared in this user's stats, so the app always has a matching photo.
  */
-export function allowedCategories(stats) {
+export function allowedCategories(stats, depth = "standard") {
   const categories = [
     ...stats.topCategories.map((c) => c.category),
     ...Object.keys(stats.animalCounts),
   ];
   if (stats.selfieCount > 0) categories.push("selfie");
   if (stats.screenshotCount > 0) categories.push("screenshot");
-  return [...new Set(categories)].slice(0, 25);
+  // Deep runs receive a wider stats slice (top 25 categories vs 10 — see
+  // StatsAggregator) and write 12–16 beats, so they may tag from more of it.
+  return [...new Set(categories)].slice(0, depth === "deep" ? 40 : 25);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +228,7 @@ function variationBlock({ stats, variationSeed }) {
 ${spotlightLine}`;
 }
 
-export function buildPrompt({ stats, persona, locale, variationSeed = 0 }) {
+export function buildPrompt({ stats, persona, locale, variationSeed = 0, depth = "standard" }) {
   const language = locale
     ? `Write in the natural language implied by the locale "${locale}" (e.g. en_US → English, tr_TR → Turkish). JSON keys and category values stay in English exactly as given.`
     : "Write in English.";
@@ -211,9 +237,9 @@ export function buildPrompt({ stats, persona, locale, variationSeed = 0 }) {
 
 ${variationBlock({ stats, variationSeed })}
 
-${OUTPUT_FORMAT}
+${outputFormat(depth)}
 
-ALLOWED CATEGORIES: ${JSON.stringify(allowedCategories(stats))}
+ALLOWED CATEGORIES: ${JSON.stringify(allowedCategories(stats, depth))}
 
 ${SIGNALS_GUIDE}
 
@@ -221,4 +247,49 @@ ${language}
 
 Here is the photo library summary (aggregated, anonymous statistics):
 ${JSON.stringify(stats, null, 2)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Deep analysis — per-photo captions for the results screen
+
+/**
+ * Prompt for api/photo-captions.js: the photos shown next to an
+ * already-written deep story, each captioned in the same persona voice.
+ * `contexts` is parallel to the uploaded images: `{ text, category|null }`,
+ * the story beat each photo illustrates. Output contract: exactly one caption
+ * per photo, batch order preserved — `{ captions: [string] }`.
+ */
+export function buildPhotoCaptionsPrompt({ persona, locale, contexts }) {
+  const language = locale
+    ? `Write in the natural language implied by the locale "${locale}" (e.g. en_US → English, tr_TR → Turkish). JSON keys stay in English exactly as given.`
+    : "Write in English.";
+
+  const contextLines = contexts
+    .map(
+      (c, i) =>
+        `Photo ${i} illustrates this story beat: "${c.text}"${c.category ? ` (topic: ${c.category})` : ""}`
+    )
+    .join("\n");
+
+  return `${PERSONA_PROMPTS[persona]}
+
+You already wrote a story about this person's photo library. The ${contexts.length} photos
+attached are the ones shown next to that story, in the order of the context lines below.
+For each photo, write ONE short caption in the same voice (max 18 words): a specific
+observation about what is actually IN this photo — its subject, mood, or one telling detail.
+Each caption should read like a footnote to its beat — complement it, never repeat its
+wording, never contradict it.
+
+${contextLines}
+
+Respond with ONLY a JSON object (no markdown fences, no commentary) in exactly this shape:
+{ "captions": ["caption for photo 0", "caption for photo 1"] }
+Rules:
+- Exactly ${contexts.length} captions, in photo order. Plain text — no emoji, no markdown.
+- Ground every word in what is actually visible. Never invent details.
+- Never comment on anyone's body, weight, or attractiveness; never guess at
+  identity, health, or private circumstances. React to scenes, habits,
+  composition, and vibes — not to people's appearance.
+
+${language}`;
 }

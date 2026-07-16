@@ -48,7 +48,14 @@ protocol PhotoAnalyzing: Sendable {
 protocol StatsAggregating: Sendable {
     /// - Parameter totalPhotos: the true asset count the scope matched (from
     ///   `ScanOutput.totalAssets`), which may exceed `observations.count`.
-    func aggregate(_ observations: [PhotoObservation], totalPhotos: Int, scope: AnalysisScope) -> PhotoStats
+    /// - Parameter depth: `.deep` keeps a wider category slice (top 25 vs 10)
+    ///   to feed the longer deep-analysis narrative.
+    func aggregate(
+        _ observations: [PhotoObservation],
+        totalPhotos: Int,
+        scope: AnalysisScope,
+        depth: AnalysisDepth
+    ) -> PhotoStats
 
     /// Category → representative asset local identifiers, for showing a
     /// matching photo next to insight segments. Stays on-device (persisted in
@@ -68,12 +75,50 @@ protocol InsightGenerating: Sendable {
     ///   re-generated (0 for a first analysis, 1 for the first Regenerate, …).
     ///   The backend uses it to rotate the narrative "lens" and spotlight
     ///   different topics so a fresh take actually reads differently.
+    /// - Parameter depth: `.deep` asks the backend for the long-form contract
+    ///   (12–16 beats, stronger model) and costs 5 credits instead of 1 —
+    ///   both enforced server-side.
     func generateInsight(
         from stats: PhotoStats,
         persona: Persona,
         appUserID: String,
-        variationSeed: Int
+        variationSeed: Int,
+        depth: AnalysisDepth
     ) async throws -> Insight
+}
+
+/// Deep analysis stage 3.5 — short AI captions for the photos the results
+/// screen displays. Best-effort: a failure here never sinks the (already
+/// charged) deep run, the cards just render without footers.
+///
+/// PRIVACY: the SECOND of only two code paths that upload image data (the
+/// other is `DeepVisionAnalyzing`), and it runs only after the user's
+/// explicit, required consent on the deep setup screen. Photos are downscaled
+/// first; asset IDs stay on-device (batch order is the only shared reference).
+protocol PhotoCaptioning: Sendable {
+    /// Maximum photos a single caption batch may contain.
+    var maxBatchSize: Int { get }
+
+    /// - Parameter photos: downscaled JPEGs in batch order, each paired with
+    ///   the narrative context of the segment it illustrates.
+    /// - Returns: one caption per uploaded photo, in the same batch order.
+    ///   May be shorter than the input if the backend trims trailing entries.
+    func captions(
+        for photos: [CaptionPhoto],
+        persona: Persona,
+        appUserID: String
+    ) async throws -> [String]
+}
+
+/// One photo in a caption batch: pixels plus the story beat it sits under.
+/// `assetID` never leaves the device — the caller uses it to map results back.
+struct CaptionPhoto: Sendable {
+    let assetID: String
+    let jpegData: Data
+    /// The segment text this photo illustrates on the results screen.
+    let segmentText: String
+    /// The segment's category tag, when it has one.
+    let category: String?
 }
 
 /// Stage 4 — render the insight into a shareable image (Instagram story sized).

@@ -15,9 +15,19 @@ struct InsightSegmentCard: View {
     /// Candidate asset local identifiers for this segment's category,
     /// preferred order first. Empty when the category has no indexed photo.
     let assetIDs: [String]
+    /// Deep analysis only: asset ID → AI caption. The footer shows the caption
+    /// for whichever candidate actually rendered, so text and photo can't
+    /// drift apart. Empty/absent on standard runs (no footer).
+    var captions: [String: String] = [:]
 
     @State private var thumbnail: UIImage?
+    /// Which candidate resolved into `thumbnail` — used to look up its caption.
+    @State private var resolvedAssetID: String?
     @State private var zoomedPhoto: ZoomablePhoto?
+
+    private var caption: String? {
+        resolvedAssetID.flatMap { captions[$0] }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
@@ -27,17 +37,34 @@ struct InsightSegmentCard: View {
 
             if let thumbnail {
                 let isLandscape = thumbnail.size.width > thumbnail.size.height
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: isLandscape ? .fit : .fill)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: isLandscape ? nil : 220, alignment: .center)
-                    .frame(maxHeight: isLandscape ? 220 : 220)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
-                    .contentShape(Rectangle())
-                    .transition(.opacity)
-                    .onTapGesture { zoomedPhoto = ZoomablePhoto(image: thumbnail, assetID: assetIDs.first) }
+                VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: isLandscape ? .fit : .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: isLandscape ? nil : 220, alignment: .center)
+                        .frame(maxHeight: isLandscape ? 220 : 220)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
+                        .contentShape(Rectangle())
+                        .onTapGesture { zoomedPhoto = ZoomablePhoto(image: thumbnail, assetID: resolvedAssetID ?? assetIDs.first) }
+
+                    // Deep-analysis photo caption: a short AI note under the
+                    // photo it describes.
+                    if let caption {
+                        HStack(alignment: .top, spacing: Theme.Spacing.xs) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(Theme.Colors.accent)
+                                .padding(.top, 2)
+                            Text(caption)
+                                .font(Theme.Typography.caption)
+                                .italic()
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                    }
+                }
+                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -45,8 +72,11 @@ struct InsightSegmentCard: View {
         .photoZoom(photo: $zoomedPhoto)
         .task(id: assetIDs) {
             guard thumbnail == nil, !assetIDs.isEmpty else { return }
-            guard let image = await SegmentThumbnailLoader.thumbnail(for: assetIDs) else { return }
-            withAnimation(Theme.motion) { thumbnail = image }
+            guard let resolved = await SegmentThumbnailLoader.resolve(assetIDs) else { return }
+            withAnimation(Theme.motion) {
+                thumbnail = resolved.image
+                resolvedAssetID = resolved.assetID
+            }
         }
     }
 }
@@ -55,7 +85,21 @@ struct InsightSegmentCard: View {
 /// Tries candidates in order so a deleted photo just falls through to the
 /// next one (or to no photo at all).
 enum SegmentThumbnailLoader {
+    /// A resolved thumbnail together with the candidate ID it came from, so
+    /// callers can key per-photo data (e.g. deep-analysis captions) on exactly
+    /// the photo that rendered.
+    struct Resolved {
+        let assetID: String
+        let image: UIImage
+    }
+
     static func thumbnail(for assetIDs: [String], side: CGFloat = 400) async -> UIImage? {
+        await resolve(assetIDs, side: side)?.image
+    }
+
+    /// Like `thumbnail(for:)` but reports which candidate resolved. Tries
+    /// candidates in order so a deleted photo falls through to the next one.
+    static func resolve(_ assetIDs: [String], side: CGFloat = 400) async -> Resolved? {
         let fetched = PHAsset.fetchAssets(withLocalIdentifiers: assetIDs, options: nil)
         guard fetched.count > 0 else { return nil }
 
@@ -65,7 +109,9 @@ enum SegmentThumbnailLoader {
 
         for id in assetIDs {
             guard let asset = byID[id] else { continue }
-            if let image = await requestImage(for: asset, side: side) { return image }
+            if let image = await requestImage(for: asset, side: side) {
+                return Resolved(assetID: id, image: image)
+            }
         }
         return nil
     }

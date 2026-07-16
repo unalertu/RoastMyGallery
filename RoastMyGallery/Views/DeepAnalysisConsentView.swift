@@ -16,9 +16,13 @@ import PhotosUI
 /// is issued by the backend AFTER a successful batch — a failed run never
 /// costs anything.
 struct DeepAnalysisConsentView: View {
-    /// The analysis this screen was opened from — supplies the persona (voice)
-    /// and the stats reused when persisting the Deep Vision run to History.
-    let sourceRecord: AnalysisRecord
+    /// Voice for the commentary.
+    let persona: Persona
+    /// Stats persisted alongside the run in History. For a run launched from an
+    /// existing analysis this is that analysis's stats; for the standalone
+    /// Hand-Picked entry it's `PhotoStats.handPickedPlaceholder()` (there was
+    /// no scan — the insight comes entirely from the uploaded photos).
+    let sourceStats: PhotoStats
 
     /// Injectable for previews/tests; live by default.
     var service: DeepVisionAnalyzing = BackendDeepVisionService()
@@ -43,7 +47,6 @@ struct DeepAnalysisConsentView: View {
     /// without a PhotoKit round-trip (History resolves by asset ID instead).
     @State private var previews: [String: UIImage] = [:]
 
-    private var persona: Persona { sourceRecord.persona }
     private var maxPhotos: Int { service.maxBatchSize }
 
     var body: some View {
@@ -317,7 +320,7 @@ struct DeepAnalysisConsentView: View {
                 createdAt: .now,
                 persona: persona,
                 insight: insight,
-                stats: sourceRecord.stats,
+                stats: sourceStats,
                 categoryPhotoIndex: nil,
                 deepVision: result
             )

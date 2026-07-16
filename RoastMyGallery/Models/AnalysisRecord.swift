@@ -22,4 +22,14 @@ struct AnalysisRecord: Codable, Identifiable, Equatable, Hashable, Sendable {
     /// run in History (nil = regular stats-based analysis, and records
     /// persisted before this field decode as nil).
     var deepVision: DeepVisionResult?
+
+    /// Which tier produced this record. Optional so records persisted before
+    /// depths existed decode as nil (treated as `.standard` everywhere).
+    var depth: AnalysisDepth? = nil
+
+    /// Deep analysis only: asset local identifier → the AI's short caption for
+    /// that photo, rendered under the matching photo card in the results.
+    /// DEVICE-ONLY: built client-side by mapping the caption batch order back
+    /// to asset IDs — the IDs themselves are never uploaded.
+    var photoCaptions: [String: String]? = nil
 }

@@ -10,6 +10,8 @@ struct HomeView: View {
 
     @State private var showScanFlow = false
     @State private var showPaywall = false
+    @State private var showTypeSheet = false
+    @State private var showHandPicked = false
 
     var body: some View {
         NavigationStack {
@@ -48,12 +50,36 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showScanFlow) {
             ScanFlowView()
         }
+        .fullScreenCover(isPresented: $showHandPicked) {
+            HandPickedAnalysisView()
+        }
         .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showTypeSheet) {
+            AnalysisTypeSheet { choice in
+                // The sheet dismisses itself; route once it's gone so the next
+                // presentation doesn't fight the dismissal transition.
+                DispatchQueue.main.async { route(choice) }
+            }
+        }
     }
 
+    /// Entry point for both the first-run CTA and the "New Analysis" button:
+    /// open the type chooser.
     private func startScan() {
-        scanViewModel.prepareForNewScan()
-        showScanFlow = true
+        showTypeSheet = true
+    }
+
+    private func route(_ choice: AnalysisTypeSheet.Choice) {
+        switch choice {
+        case .standard:
+            scanViewModel.prepareForNewScan(depth: .standard)
+            showScanFlow = true
+        case .deep:
+            scanViewModel.prepareForNewScan(depth: .deep)
+            showScanFlow = true
+        case .handPicked:
+            showHandPicked = true
+        }
     }
 
     private var header: some View {

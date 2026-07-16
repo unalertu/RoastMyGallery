@@ -21,11 +21,20 @@ struct PhotoObservation: Sendable, Equatable {
     let faceCount: Int
 
     /// Top scene/object classification labels above the confidence threshold
-    /// (VNClassifyImageRequest), e.g. ["food", "plate", "indoor"].
-    let categories: [String]
+    /// (VNClassifyImageRequest) with their Vision confidence, e.g.
+    /// [("food", 0.82), ("plate", 0.55)]. Confidence lets `photoIndex` rank the
+    /// representative photo for each category by match strength rather than
+    /// recency (see StatsAggregator).
+    let categories: [ScoredCategory]
 
     /// Detected animal labels (VNRecognizeAnimalsRequest), e.g. ["cat"].
     let animals: [String]
+
+    /// One scene/object label with its Vision classification confidence (0…1).
+    struct ScoredCategory: Sendable, Equatable {
+        let identifier: String
+        let confidence: Float
+    }
 }
 
 /// A deliberately low-precision location bucket (~11 km grid at the equator)

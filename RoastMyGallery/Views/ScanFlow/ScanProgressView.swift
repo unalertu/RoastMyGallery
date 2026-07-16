@@ -5,6 +5,8 @@ import SwiftUI
 struct ScanProgressView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
 
+    private var isDeep: Bool { scanViewModel.selectedDepth == .deep }
+
     var body: some View {
         VStack(spacing: Theme.Spacing.l) {
             Spacer()
@@ -34,7 +36,7 @@ struct ScanProgressView: View {
                 DriftingRing()
 
                 VStack(spacing: Theme.Spacing.s) {
-                    Text("Writing your story")
+                    Text(isDeep ? "Writing your long story" : "Writing your story")
                         .font(Theme.Typography.title)
                     if let persona = scanViewModel.selectedPersona {
                         Text("In your \(persona.displayName.lowercased()) voice…")
@@ -43,8 +45,27 @@ struct ScanProgressView: View {
                     }
                 }
 
-                // The LLM round-trip takes a few seconds; set expectations.
-                Text("This usually takes a few seconds.")
+                // Deep writes a much longer story on a stronger model; standard
+                // is a few seconds. Set the right expectation for each.
+                Text(isDeep
+                     ? "A deep read takes a little longer — hang tight."
+                     : "This usually takes a few seconds.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+
+            case .captioning:
+                DriftingRing()
+
+                VStack(spacing: Theme.Spacing.s) {
+                    Text("Captioning your photos")
+                        .font(Theme.Typography.title)
+                    Text("Adding a note under each photo…")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                Text("Almost done — this is the last step.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
 

@@ -53,8 +53,16 @@ final class PurchaseManager {
     // contexts (e.g. PaywallView.Context) without a Swift 6 isolation error.
 
     nonisolated static let analysisCost = 1
+    /// Deep analysis: the date-range scan with the long story + photo captions.
+    nonisolated static let deepAnalysisCost = 5
+    /// Hand-picked Deep Vision: the user-selected ≤30 photo batch.
     nonisolated static let deepVisionCost = 5
     nonisolated static let starterCredits = 3
+
+    /// Cost of one analysis run at the given depth.
+    nonisolated static func cost(for depth: AnalysisDepth) -> Int {
+        depth == .deep ? deepAnalysisCost : analysisCost
+    }
 
     /// Credits granted per purchase, mirrored client-side purely for paywall
     /// framing ("10 credits = 10 analyses"). The authoritative grant is the

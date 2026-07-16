@@ -20,6 +20,7 @@ export const CREDIT_CURRENCY_CODE = "CRD";
 // Virtual Currency associated-product grants in the RevenueCat dashboard.
 export const CREDIT_COSTS = {
   analysis: 1,
+  deep_analysis: 5,
   deep_vision: 5,
   starter: 3,
 };

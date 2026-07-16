@@ -12,13 +12,21 @@ struct PersonaPickerView: View {
     @State private var paywallContext: PaywallView.Context = .general
     @State private var showMonthPicker = false
     @State private var showAlbumPicker = false
+    @State private var showDateRangePicker = false
     @State private var albums: [PhotoLibraryService.AlbumInfo] = []
+
+    private var isDeep: Bool { scanViewModel.selectedDepth == .deep }
+    private var analysisCost: Int { PurchaseManager.cost(for: scanViewModel.selectedDepth) }
 
     var body: some View {
         VStack(spacing: Theme.Spacing.l) {
             Spacer()
 
-            scopeSection
+            if isDeep {
+                deepScopeSection
+            } else {
+                scopeSection
+            }
 
             VStack(spacing: Theme.Spacing.s) {
                 Text("Pick a voice")
@@ -41,13 +49,15 @@ struct PersonaPickerView: View {
             }
             .padding(.top, Theme.Spacing.m)
 
+            if isDeep { deepConsentCard }
+
             Spacer()
 
-            Button("Analyze My Photos") {
+            Button(isDeep ? "Start Deep Analysis" : "Analyze My Photos") {
                 // Client-side affordability check is UX only — route to the
                 // paywall early if the balance looks short. The authoritative
                 // gate is RevenueCat rejecting an over-spend server-side.
-                if purchaseManager.canAfford(PurchaseManager.analysisCost) {
+                if purchaseManager.canAfford(analysisCost) {
                     scanViewModel.startScan(appUserID: purchaseManager.appUserID)
                 } else {
                     paywallContext = .analysis(have: purchaseManager.creditBalance)
@@ -55,17 +65,17 @@ struct PersonaPickerView: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(scanViewModel.selectedPersona == nil)
+            .disabled(!canStart)
 
-            Text(scanViewModel.selectedPersona == nil
-                 ? "Choose a voice to begin"
-                 : "\(PurchaseManager.analysisCost) credit • you have \(purchaseManager.creditBalance)")
+            Text(startFootnote)
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
         }
         .padding(Theme.Spacing.l)
         .animation(Theme.motion, value: scanViewModel.selectedPersona)
         .animation(Theme.motion, value: scanViewModel.selectedScope)
+        .animation(Theme.motion, value: scanViewModel.hasDeepConsent)
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: paywallContext)
         }
@@ -79,6 +89,29 @@ struct PersonaPickerView: View {
                 scanViewModel.selectedScope = scope
             }
         }
+        .sheet(isPresented: $showDateRangePicker) {
+            DateRangePickerSheet { scope in
+                scanViewModel.selectedScope = scope
+            }
+        }
+    }
+
+    /// Deep requires a chosen date range AND consent; standard just needs a
+    /// voice (its scope defaults to full history).
+    private var canStart: Bool {
+        guard scanViewModel.selectedPersona != nil else { return false }
+        if isDeep {
+            return isDateRangeSelected && scanViewModel.hasDeepConsent
+        }
+        return true
+    }
+
+    private var startFootnote: String {
+        if scanViewModel.selectedPersona == nil { return "Choose a voice to begin" }
+        if isDeep && !isDateRangeSelected { return "Pick a date range to analyze" }
+        if isDeep && !scanViewModel.hasDeepConsent { return "Agree to photo captioning to continue" }
+        let unit = analysisCost == 1 ? "credit" : "credits"
+        return "\(analysisCost) \(unit) • you have \(purchaseManager.creditBalance)"
     }
 
     // MARK: - Scope
@@ -116,6 +149,74 @@ struct PersonaPickerView: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
+    }
+
+    // MARK: - Deep scope + consent
+
+    /// Deep analysis replaces the three scope chips with a single required
+    /// date-range picker (capped at 1 year in the sheet itself).
+    private var deepScopeSection: some View {
+        VStack(spacing: Theme.Spacing.s) {
+            Text("Deep Analysis")
+                .font(Theme.Typography.label)
+                .tracking(1)
+                .foregroundStyle(Theme.Colors.accent)
+
+            Button {
+                showDateRangePicker = true
+            } label: {
+                HStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 18, weight: .light))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(isDateRangeSelected ? "Date range" : "Choose a date range")
+                            .font(Theme.Typography.headline)
+                        Text(isDateRangeSelected
+                             ? scanViewModel.selectedScope.displayLabel
+                             : "Up to one year of photos")
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                .foregroundStyle(isDateRangeSelected ? Theme.Colors.accent : Theme.Colors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Theme.Spacing.m)
+                .background(
+                    isDateRangeSelected ? Theme.Colors.accentSoft : Theme.Colors.surface,
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.button)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.button)
+                        .stroke(isDateRangeSelected ? Theme.Colors.accent : .clear, lineWidth: 1.5)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Deep uploads the photos shown in the results for AI captions, so it
+    /// requires explicit, unchecked-by-default consent every run — matching
+    /// the app's contract that image uploads are always opt-in.
+    private var deepConsentCard: some View {
+        Toggle(isOn: Binding(
+            get: { scanViewModel.hasDeepConsent },
+            set: { scanViewModel.hasDeepConsent = $0 }
+        )) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Caption my photos with AI")
+                    .font(Theme.Typography.headline)
+                Text("The handful of photos shown in your results — and only those — will be resized on your device and uploaded once for a short caption each. Your other photos never leave your phone; the story itself is built from anonymous stats.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineSpacing(2)
+            }
+        }
+        .tint(Theme.Colors.accent)
+        .themedCard()
     }
 
     private var isDateRangeSelected: Bool {

@@ -104,10 +104,13 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
             return nil
         }
 
+        // Keep each label's confidence (Vision returns results
+        // confidence-descending) so the aggregator can rank representative
+        // photos by match strength, not just recency.
         let categories = (classify.results ?? [])
             .filter { $0.confidence >= classificationThreshold }
             .prefix(maxCategoriesPerPhoto)
-            .map(\.identifier)
+            .map { PhotoObservation.ScoredCategory(identifier: $0.identifier, confidence: $0.confidence) }
 
         let animalLabels = (animals.results ?? []).flatMap { observation in
             observation.labels.map(\.identifier)

@@ -4,11 +4,25 @@ import Foundation
 /// that gets serialized to JSON for the insight backend. Pure function of its
 /// inputs — no I/O, trivially testable.
 struct StatsAggregator: StatsAggregating {
-    private let maxTopCategories = 10
     private let maxLocationClusters = 5
-    private let maxCategoriesPerMonth = 5
 
-    func aggregate(_ observations: [PhotoObservation], totalPhotos: Int, scope: AnalysisScope) -> PhotoStats {
+    /// Deep analysis feeds a much longer narrative, so it keeps a wider slice
+    /// of the category distribution (the backend's allowed-category list grows
+    /// to match — see backend/lib/prompts.js).
+    private func maxTopCategories(for depth: AnalysisDepth) -> Int {
+        depth == .deep ? 25 : 10
+    }
+
+    private func maxCategoriesPerMonth(for depth: AnalysisDepth) -> Int {
+        depth == .deep ? 8 : 5
+    }
+
+    func aggregate(
+        _ observations: [PhotoObservation],
+        totalPhotos: Int,
+        scope: AnalysisScope,
+        depth: AnalysisDepth
+    ) -> PhotoStats {
         var categoryCounts: [String: Int] = [:]
         var monthlyCategoryCounts: [String: [String: Int]] = [:]
         var photosByMonth: [String: Int] = [:]
@@ -46,10 +60,19 @@ struct StatsAggregator: StatsAggregating {
             // Map raw Vision labels onto the friendly topic vocabulary before
             // counting, so synonyms merge, filler is dropped, and the keys here
             // match the ones `photoIndex` records (see CategoryVocabulary).
-            for category in CategoryVocabulary.topics(for: observation.categories) {
-                categoryCounts[category, default: 0] += 1
-                if let monthKey {
-                    monthlyCategoryCounts[monthKey, default: [:]][category, default: 0] += 1
+            //
+            // Screenshots are deliberately excluded from scene categories:
+            // `VNClassifyImageRequest` is unreliable on UI/text/solid-color
+            // images (a black Notes screenshot reads as "sky", a white one as
+            // "paper"), which both inflated bogus category counts and surfaced
+            // screenshots as the representative photo for real topics. They're
+            // still counted via `screenshotCount` and the "screenshot" tag.
+            if !observation.isScreenshot {
+                for scored in CategoryVocabulary.scoredTopics(for: observation.categories) {
+                    categoryCounts[scored.topic, default: 0] += 1
+                    if let monthKey {
+                        monthlyCategoryCounts[monthKey, default: [:]][scored.topic, default: 0] += 1
+                    }
                 }
             }
 
@@ -64,13 +87,14 @@ struct StatsAggregator: StatsAggregating {
 
         let topCategories = categoryCounts
             .sorted { $0.value > $1.value }
-            .prefix(maxTopCategories)
+            .prefix(maxTopCategories(for: depth))
             .map { CategoryCount(category: $0.key, count: $0.value) }
 
+        let monthlyLimit = maxCategoriesPerMonth(for: depth)
         let categoriesByMonth = monthlyCategoryCounts.mapValues { counts in
             counts
                 .sorted { $0.value > $1.value }
-                .prefix(maxCategoriesPerMonth)
+                .prefix(monthlyLimit)
                 .map { CategoryCount(category: $0.key, count: $0.value) }
         }
 
@@ -111,11 +135,17 @@ struct StatsAggregator: StatsAggregating {
     /// allowed-category vocabulary: Vision category labels, animal labels,
     /// plus the synthetic "selfie" / "screenshot" tags.
     ///
-    /// Observations arrive newest-first (see `PhotoLibraryService.fetchAssets`),
-    /// so the first two asset IDs recorded per key are the most recent matches.
+    /// Scene categories keep their up-to-`maxAssetsPerCategory` HIGHEST-
+    /// CONFIDENCE matches (across the whole scan), so a segment tagged "food"
+    /// resolves to the strongest food photo, not merely the most recent one.
+    /// Animal/selfie/screenshot tags have no scene-classification score, so
+    /// they stay recency-ordered (observations arrive newest-first).
     /// DEVICE-ONLY: asset identifiers are never serialized to the backend.
     func photoIndex(for observations: [PhotoObservation]) -> [String: [String]] {
-        let maxAssetsPerCategory = 2
+        // 3 keeps a little headroom for the results screen's cross-segment
+        // de-duplication (so two beats sharing a category can show different
+        // photos) without reaching so deep that weak matches surface.
+        let maxAssetsPerCategory = 3
         var index: [String: [String]] = [:]
 
         func record(_ key: String, _ assetID: String) {
@@ -125,12 +155,23 @@ struct StatsAggregator: StatsAggregating {
             index[key] = ids
         }
 
-        for observation in observations {
-            // Same friendly-topic mapping as `aggregate`, so a segment tagged
-            // e.g. "food" resolves to a photo indexed under "food".
-            for category in CategoryVocabulary.topics(for: observation.categories) {
-                record(category, observation.assetID)
+        // Scene categories: gather every (topic, photo, confidence) candidate,
+        // then record strongest-first so each topic keeps its best matches.
+        // Screenshots are excluded — their scene classification is unreliable
+        // (see `aggregate`), so they'd otherwise surface as bogus matches.
+        var sceneCandidates: [(topic: String, assetID: String, confidence: Float)] = []
+        for observation in observations where !observation.isScreenshot {
+            for scored in CategoryVocabulary.scoredTopics(for: observation.categories) {
+                sceneCandidates.append((scored.topic, observation.assetID, scored.confidence))
             }
+        }
+        for candidate in sceneCandidates.sorted(by: { $0.confidence > $1.confidence }) {
+            record(candidate.topic, candidate.assetID)
+        }
+
+        // Animal / selfie / screenshot tags: recency-ordered, filling any
+        // remaining slots (and their own keys).
+        for observation in observations {
             for animal in observation.animals { record(animal, observation.assetID) }
             if observation.isSelfie { record("selfie", observation.assetID) }
             if observation.isScreenshot { record("screenshot", observation.assetID) }

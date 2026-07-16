@@ -66,7 +66,7 @@ struct InsightView: View {
             PaywallView(context: paywallContext)
         }
         .sheet(isPresented: $showDeepAnalysis) {
-            DeepAnalysisConsentView(sourceRecord: record)
+            DeepAnalysisConsentView(persona: record.persona, sourceStats: record.stats)
         }
         .fullScreenCover(isPresented: $showRegenerateFlow) {
             // From Home/History: show the in-flight generation and the fresh
@@ -101,12 +101,23 @@ struct InsightView: View {
                 .font(Theme.Typography.display)
                 .padding(.top, Theme.Spacing.s)
 
-            // Which slice of the library this story is about (e.g. "April
-            // 2024", an album name, or "Full history") — distinct from the
-            // created date above, which is only when it was generated.
-            Label(record.stats.scope.displayLabel, systemImage: "calendar")
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.textSecondary)
+            HStack(spacing: Theme.Spacing.s) {
+                // Which slice of the library this story is about (e.g. "April
+                // 2024", an album name, or "Full history") — distinct from the
+                // created date above, which is only when it was generated.
+                Label(record.stats.scope.displayLabel, systemImage: "calendar")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                if record.depth == .deep {
+                    Label("Deep", systemImage: "sparkles")
+                        .font(Theme.Typography.label)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(.horizontal, Theme.Spacing.s)
+                        .padding(.vertical, 2)
+                        .background(Theme.Colors.accentSoft, in: Capsule())
+                }
+            }
         }
         .padding(.top, Theme.Spacing.l)
     }
@@ -118,12 +129,16 @@ struct InsightView: View {
     @ViewBuilder
     private var narrative: some View {
         if let segments = record.insight.segments, !segments.isEmpty {
-            let assetIDsPerSegment = deduplicatedAssetIDs(for: segments)
+            let assetIDsPerSegment = SegmentPhotoResolver.assetIDsPerSegment(
+                segments: segments,
+                photoIndex: record.categoryPhotoIndex
+            )
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
                     InsightSegmentCard(
                         segment: segment,
-                        assetIDs: assetIDsPerSegment[index]
+                        assetIDs: assetIDsPerSegment[index],
+                        captions: record.photoCaptions ?? [:]
                     )
                 }
             }
@@ -132,33 +147,6 @@ struct InsightView: View {
                 .font(Theme.Typography.body)
                 .lineSpacing(Theme.Typography.bodyLineSpacing)
                 .themedCard()
-        }
-    }
-
-    /// Candidate photos for each segment, in render order, de-duplicated
-    /// across the whole narrative: once a photo is claimed by one beat it's
-    /// pushed to the back of later beats' candidate lists, so two segments
-    /// that share a category (e.g. two "screenshot" beats) surface different
-    /// photos when the category indexed more than one. Each key holds up to
-    /// two assets (see `StatsAggregator.photoIndex`), which covers the common
-    /// case; if a category has only one photo, that lone photo is reused
-    /// rather than showing nothing. Untagged/unindexed segments stay empty
-    /// (text-only card).
-    private func deduplicatedAssetIDs(for segments: [Insight.Segment]) -> [[String]] {
-        var claimed: Set<String> = []
-        return segments.map { segment in
-            guard let category = segment.category,
-                  let candidates = record.categoryPhotoIndex?[category],
-                  !candidates.isEmpty else { return [] }
-
-            // Prefer photos no earlier beat has already shown.
-            let fresh = candidates.filter { !claimed.contains($0) }
-            let ordered = fresh + candidates.filter { claimed.contains($0) }
-
-            // Claim the one the card will most likely display (its first
-            // resolvable candidate) so the next beat avoids it.
-            if let first = ordered.first { claimed.insert(first) }
-            return ordered
         }
     }
 
@@ -197,7 +185,7 @@ struct InsightView: View {
             Button {
                 showDeepAnalysis = true
             } label: {
-                Label("Deep Photo Analysis · \(PurchaseManager.deepVisionCost) credits", systemImage: "sparkles")
+                Label("Hand-Pick Photos to Read · \(PurchaseManager.deepVisionCost) credits", systemImage: "photo.badge.plus")
             }
             .buttonStyle(SoftButtonStyle())
         } else {
@@ -205,7 +193,7 @@ struct InsightView: View {
                 paywallContext = .deepVision(have: purchaseManager.creditBalance)
                 showPaywall = true
             } label: {
-                Label("Deep Photo Analysis · needs \(PurchaseManager.deepVisionCost) credits", systemImage: "sparkles")
+                Label("Hand-Pick Photos to Read · needs \(PurchaseManager.deepVisionCost) credits", systemImage: "photo.badge.plus")
             }
             .buttonStyle(SoftButtonStyle())
         }
@@ -215,11 +203,13 @@ struct InsightView: View {
     /// advancing variation seed (see `ScanViewModel.regenerate`). Always shown —
     /// the results screen is the natural place to ask for a different read.
     private var regenerateButton: some View {
-        Button {
+        // A deep record regenerates deep (long story, 5 credits); standard, 1.
+        let cost = PurchaseManager.cost(for: record.depth ?? .standard)
+        return Button {
             regenerate()
         } label: {
             Label(
-                "Get a fresh take · \(PurchaseManager.analysisCost) credit",
+                "Get a fresh take · \(cost) \(cost == 1 ? "credit" : "credits")",
                 systemImage: "arrow.triangle.2.circlepath"
             )
         }
@@ -227,9 +217,10 @@ struct InsightView: View {
     }
 
     private func regenerate() {
+        let cost = PurchaseManager.cost(for: record.depth ?? .standard)
         // Client-side affordability check is UX only; the backend is the
         // authoritative gate (deduct-after-success), same as a normal analysis.
-        guard purchaseManager.canAfford(PurchaseManager.analysisCost) else {
+        guard purchaseManager.canAfford(cost) else {
             paywallContext = .analysis(have: purchaseManager.creditBalance)
             showPaywall = true
             return

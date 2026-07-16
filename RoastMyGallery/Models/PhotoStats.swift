@@ -46,6 +46,29 @@ struct PhotoStats: Codable, Sendable, Hashable {
     var selfieRatio: Double {
         analyzedPhotos > 0 ? Double(selfieCount) / Double(analyzedPhotos) : 0
     }
+
+    /// Empty stats for a run that never scanned the library — the standalone
+    /// Hand-Picked flow, whose insight comes entirely from the uploaded photo
+    /// batch (Deep Vision), not from aggregate stats. Only `scope` is
+    /// meaningful (it labels the entry in History); every count is zero.
+    static func handPickedPlaceholder() -> PhotoStats {
+        PhotoStats(
+            generatedAt: .now,
+            scope: .album(identifier: "hand-picked", name: "Hand-picked photos"),
+            totalPhotos: 0,
+            analyzedPhotos: 0,
+            selfieCount: 0,
+            screenshotCount: 0,
+            favoriteCount: 0,
+            faceCountBuckets: ["0": 0, "1": 0, "2+": 0],
+            topCategories: [],
+            categoriesByMonth: [:],
+            photosByMonth: [:],
+            photosByHourOfDay: [Int](repeating: 0, count: 24),
+            topLocationClusters: [],
+            animalCounts: [:]
+        )
+    }
 }
 
 struct CategoryCount: Codable, Sendable, Hashable {

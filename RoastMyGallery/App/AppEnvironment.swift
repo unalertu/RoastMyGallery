@@ -8,6 +8,7 @@ struct AppEnvironment {
     let aggregator: StatsAggregating
     let insightGenerator: InsightGenerating
     let deepVision: DeepVisionAnalyzing
+    let photoCaptions: PhotoCaptioning
 
     /// Real on-device analysis + real insight backend (Gemini via Vercel).
     /// No offline/outage fallback — a failed insight surfaces as a calm error
@@ -20,7 +21,8 @@ struct AppEnvironment {
             analyzer: OnDeviceAnalyzer(library: library),
             aggregator: StatsAggregator(),
             insightGenerator: BackendInsightGenerator(), // URL: AppConfig.backendBaseURL
-            deepVision: BackendDeepVisionService()
+            deepVision: BackendDeepVisionService(),
+            photoCaptions: BackendPhotoCaptionService()
         )
     }
 }

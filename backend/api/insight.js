@@ -1,15 +1,26 @@
 // POST /api/insight
-// Body:    { stats: PhotoStats, persona: "roast" | "analyst", locale?: string }
+// Body:    { stats: PhotoStats, persona: "roast" | "analyst", locale?: string,
+//            depth?: "standard" | "deep" }
 // Returns: { insightText: string, generatedAt: string (ISO 8601) }
+//
+// depth "deep" = the 5-credit tier: stronger model, 12–16 segments, ~700-word
+// budget. Absent/"standard" = the classic 1-credit run.
 //
 // The Gemini API key lives ONLY in the GEMINI_API_KEY environment variable
 // (Vercel dashboard / `vercel env add`). It is never sent by the client.
 
-import { buildPrompt, allowedCategories, GEMINI_MODEL, PERSONA_PROMPTS } from "../lib/prompts.js";
+import {
+  buildPrompt,
+  allowedCategories,
+  GEMINI_MODEL,
+  GEMINI_DEEP_MODEL,
+  PERSONA_PROMPTS,
+} from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
-import { spendCredits, CREDIT_COSTS } from "../lib/revenuecat.js";
+import { spendCredits, getCreditBalance, CREDIT_COSTS } from "../lib/revenuecat.js";
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const geminiURL = (model) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 /**
  * Typical PhotoStats payloads are 1–3 KB; a Pro fullHistory scan of a
@@ -17,6 +28,9 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
  * tens of KB. Anything near this limit is not our app.
  */
 const MAX_STATS_JSON_BYTES = 64_000;
+
+// Note: this function's maxDuration (60s, for deep runs) is set in vercel.json
+// alongside the other slow endpoints — not via an inline `config` export.
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -48,6 +62,21 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: validationError });
   }
   const { stats, persona, locale, appUserId, variationSeed } = req.body;
+  const depth = req.body.depth === "deep" ? "deep" : "standard";
+
+  // Deep runs cost 5 CRD: worth a read-only affordability pre-check against
+  // the authoritative balance before burning the (pricier) Gemini call.
+  // null = balance unknown (RC not configured / unreachable) → fail-open.
+  // Deduction still happens only after success below.
+  if (depth === "deep" && appUserId) {
+    const balance = await getCreditBalance(appUserId);
+    if (balance !== null && balance < CREDIT_COSTS.deep_analysis) {
+      return res.status(402).json({
+        error: "Not enough credits for a deep analysis.",
+        reason: "insufficient_credits",
+      });
+    }
+  }
 
   if (!allowDailyRequest()) {
     return res.status(429).json({
@@ -56,32 +85,79 @@ export default async function handler(req, res) {
     });
   }
 
-  let geminiResponse;
-  try {
-    geminiResponse = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: buildPrompt({ stats, persona, locale, variationSeed: variationSeed ?? 0 }) }],
-          },
-        ],
-        generationConfig: {
-          // High so regenerations diverge in wording; the rotating lens +
-          // spotlight (see buildPrompt) drive the structural variety.
-          temperature: 1.0,
-          maxOutputTokens: 1024,
-          responseMimeType: "application/json",
+  const prompt = buildPrompt({ stats, persona, locale, variationSeed: variationSeed ?? 0, depth });
+  // Deep needs real headroom: gemini-3.x flash is a "thinking" model that
+  // spends output tokens on hidden reasoning BEFORE the JSON, and a 12–16
+  // segment / ~700-word story on top of that blew past the old 3072 budget and
+  // truncated the JSON mid-object. Two guards: give deep a large budget, and
+  // disable thinking for this pure structured-writing task (thinkingBudget: 0)
+  // so the whole budget goes to output — verified accepted by both the deep
+  // and fallback models on v1beta, and it cuts latency too.
+  const maxOutputTokens = depth === "deep" ? 8192 : 1024;
+  const generationConfig = {
+    // High so regenerations diverge in wording; the rotating lens + spotlight
+    // (see buildPrompt) drive the structural variety.
+    temperature: 1.0,
+    maxOutputTokens,
+    responseMimeType: "application/json",
+  };
+  if (depth === "deep") {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+
+  // Deep prefers the stronger model, but that model (gemini-3.5-flash) is
+  // frequently capacity-limited (503 "high demand"). Rather than fail a paid
+  // deep run — or blow the function's time budget retrying a slow, overloaded
+  // model — try it ONCE and fall straight to the fast, reliable standard model
+  // on any error. The deep VALUE is mostly the longer prompt, wider category
+  // set, and captions, all of which still apply. Standard has only its one
+  // model, so it gets a single transient retry instead of a fallback.
+  const models = depth === "deep" ? [GEMINI_DEEP_MODEL, GEMINI_MODEL] : [GEMINI_MODEL];
+  const retryLast = depth !== "deep"; // no fallback available → one retry
+
+  const callModel = async (model) => {
+    try {
+      return await fetch(geminiURL(model), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
         },
-      }),
-    });
-  } catch (error) {
-    console.error("Gemini fetch failed:", error);
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig,
+        }),
+      });
+    } catch (error) {
+      console.error(`Gemini fetch failed (${model}):`, error);
+      return null;
+    }
+  };
+
+  let geminiResponse = null;
+  let lastStatus = 0;
+  for (let i = 0; i < models.length; i += 1) {
+    const model = models[i];
+    geminiResponse = await callModel(model);
+    if (geminiResponse?.ok) break;
+    lastStatus = geminiResponse?.status ?? 0;
+
+    if (geminiResponse) {
+      const detail = await geminiResponse.text().catch(() => "");
+      console.warn(`Gemini ${geminiResponse.status} on ${model}: ${detail.slice(0, 200)}`);
+    }
+
+    // One retry on the last model only when there's no other model to try.
+    const isLast = i === models.length - 1;
+    if (isLast && retryLast && (lastStatus === 429 || lastStatus === 503)) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      geminiResponse = await callModel(model);
+      if (geminiResponse?.ok) break;
+      lastStatus = geminiResponse?.status ?? lastStatus;
+    }
+  }
+
+  if (!geminiResponse) {
     return res.status(502).json({ error: "Could not reach the AI service." });
   }
 
@@ -92,7 +168,7 @@ export default async function handler(req, res) {
   }
   if (!geminiResponse.ok) {
     const detail = await geminiResponse.text().catch(() => "");
-    console.error(`Gemini error ${geminiResponse.status}:`, detail.slice(0, 500));
+    console.error(`Gemini error ${geminiResponse.status} (last status ${lastStatus}):`, detail.slice(0, 500));
     return res.status(502).json({ error: "The AI service returned an error." });
   }
 
@@ -112,7 +188,7 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: "The AI service returned no usable text." });
   }
 
-  const parsed = parseSegmented(rawText, allowedCategories(stats));
+  const parsed = parseSegmented(rawText, allowedCategories(stats, depth), depth);
   if (!parsed) {
     console.warn("Gemini output was not valid segmented JSON — serving legacy plain text.");
   }
@@ -121,15 +197,17 @@ export default async function handler(req, res) {
   // that predate `segments`; `shareLine`/`segments` are additive.
   const { insightText, shareLine, segments } = parsed ?? legacyFields(rawText);
 
-  // Deduct-after-success: the insight generated, so charge 1 credit. We do this
-  // AFTER a usable result exists, and never fail the response on a deduction
-  // error — we can't un-generate the insight. A failed/ skipped deduction is
-  // logged for reconciliation (and is a no-op until RevenueCat env vars exist).
+  // Deduct-after-success: the insight generated, so charge for it (1 CRD
+  // standard, 5 CRD deep). We do this AFTER a usable result exists, and never
+  // fail the response on a deduction error — we can't un-generate the insight.
+  // A failed/skipped deduction is logged for reconciliation (and is a no-op
+  // until RevenueCat env vars exist).
   if (appUserId) {
-    const spend = await spendCredits(appUserId, CREDIT_COSTS.analysis);
+    const cost = depth === "deep" ? CREDIT_COSTS.deep_analysis : CREDIT_COSTS.analysis;
+    const spend = await spendCredits(appUserId, cost);
     if (!spend.ok) {
       console.error(
-        `Credit deduction failed for ${appUserId} after a successful insight (status ${spend.status}).`
+        `Credit deduction failed for ${appUserId} after a successful ${depth} insight (status ${spend.status}).`
       );
     }
   }
@@ -151,14 +229,19 @@ export default async function handler(req, res) {
  * Parses the segmented JSON contract from lib/prompts.js and sanitizes it:
  * bounded lengths, categories coerced to null unless in the allowed list.
  * Returns { insightText, shareLine, segments } or null when unusable.
+ *
+ * Falls back to `salvageTruncatedJSON` when a strict parse fails, so a story
+ * that got cut off mid-object (e.g. a very long library hitting the token
+ * limit despite the raised budget) still yields its complete leading segments
+ * instead of collapsing to raw-JSON legacy text.
  */
-function parseSegmented(rawText, allowed) {
+function parseSegmented(rawText, allowed, depth = "standard") {
+  const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   let data;
   try {
-    // The mime type makes fences unlikely, but strip them defensively.
-    data = JSON.parse(rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+    data = JSON.parse(cleaned);
   } catch {
-    return null;
+    data = salvageTruncatedJSON(cleaned);
   }
   if (!data || typeof data !== "object") return null;
 
@@ -168,7 +251,7 @@ function parseSegmented(rawText, allowed) {
   if (!Array.isArray(data.segments) || data.segments.length === 0) return null;
   const allowedSet = new Set(allowed);
   const segments = data.segments
-    .slice(0, 8)
+    .slice(0, depth === "deep" ? 18 : 8)
     .map((segment) => {
       const text = typeof segment?.text === "string" ? segment.text.trim().slice(0, 500) : "";
       const category =
@@ -190,6 +273,46 @@ function parseSegmented(rawText, allowed) {
     shareLine,
     segments,
   };
+}
+
+/**
+ * Best-effort recovery of a truncated segmented-JSON payload: pulls the title
+ * and every COMPLETE `{ "text": ..., "category": ... }` object out of a string
+ * whose closing braces never arrived. A half-written trailing segment simply
+ * won't match the "complete object" pattern, so it's dropped. Returns a shape
+ * `parseSegmented` can sanitize, or null when not even a title + one segment
+ * survive. Only invoked after a strict JSON.parse fails.
+ */
+function salvageTruncatedJSON(text) {
+  // Decode a JSON string body (with its escapes) captured without quotes.
+  const decode = (inner) => {
+    try {
+      return JSON.parse(`"${inner}"`);
+    } catch {
+      return null;
+    }
+  };
+
+  const titleMatch = text.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const title = titleMatch ? decode(titleMatch[1]) : null;
+  if (!title) return null;
+
+  const segmentRe =
+    /\{\s*"text"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,\s*"category"\s*:\s*(null|"(?:[^"\\]|\\.)*")\s*\}/g;
+  const segments = [];
+  let match;
+  while ((match = segmentRe.exec(text)) !== null) {
+    const segText = decode(match[1]);
+    if (!segText) continue;
+    const category = match[2] === "null" ? null : decode(match[2].slice(1, -1));
+    segments.push({ text: segText, category });
+  }
+  if (segments.length === 0) return null;
+
+  const shareMatch = text.match(/"shareLine"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const shareLine = shareMatch ? decode(shareMatch[1]) : undefined;
+
+  return { title, segments, shareLine };
 }
 
 /** Pre-segments behavior for non-JSON model output: extract "SHARE: …". */
@@ -291,6 +414,7 @@ const BODY_FIELDS = new Set([
   "schemaVersion",
   "appUserId",
   "variationSeed",
+  "depth",
 ]);
 
 /** Returns an error message for invalid input, or null if valid. */
@@ -313,6 +437,11 @@ function validate(body) {
   if (variationSeed !== undefined &&
       !(Number.isInteger(variationSeed) && variationSeed >= 0 && variationSeed <= 100000)) {
     return 'Field "variationSeed" must be a non-negative integer when present.';
+  }
+
+  // Optional: analysis tier. Absent (older clients) means standard.
+  if (body.depth !== undefined && body.depth !== "standard" && body.depth !== "deep") {
+    return 'Field "depth" must be "standard" or "deep" when present.';
   }
 
   if (!persona || !Object.hasOwn(PERSONA_PROMPTS, persona)) {

@@ -24,7 +24,7 @@ struct ScanFlowView: View {
                         PermissionView()
                     case .readyToScan:
                         PersonaPickerView()
-                    case .scanning, .generatingInsight:
+                    case .scanning, .generatingInsight, .captioning:
                         ScanProgressView()
                     case .results(let record):
                         InsightView(record: record, isInScanFlow: true)

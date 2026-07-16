@@ -2,6 +2,12 @@
   "functions": {
     "api/deep-vision.js": {
       "maxDuration": 60
+    },
+    "api/insight.js": {
+      "maxDuration": 60
+    },
+    "api/photo-captions.js": {
+      "maxDuration": 60
     }
   }
 }

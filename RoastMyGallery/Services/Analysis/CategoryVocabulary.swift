@@ -78,6 +78,49 @@ enum CategoryVocabulary {
         "receipt": "receipts", "art": "art", "painting": "art",
         "drawing": "art", "fashion": "fashion", "clothing": "fashion",
         "shoe": "fashion", "book": "books",
+        // Music
+        "instrument": "music", "musical_instrument": "music",
+        "guitar": "music", "piano": "music", "headphones": "music",
+        "vinyl": "music", "record_player": "music",
+        // The outdoors (activity — distinct from the "nature" scenery topic)
+        "hiking": "the outdoors", "camping": "the outdoors",
+        "tent": "the outdoors", "trail": "the outdoors",
+        "backpack": "the outdoors", "campfire": "the outdoors",
+        // Cooking (the act — plated results still map to "food")
+        "kitchen": "cooking", "cooking": "cooking", "baking": "cooking",
+        "ingredient": "cooking", "cookware": "cooking",
+        // Shopping
+        "shop": "shopping", "market": "shopping", "store": "shopping",
+        "mall": "shopping", "bazaar": "shopping", "supermarket": "shopping",
+        // Work life
+        "office": "work life", "desk": "work life", "laptop": "work life",
+        "meeting": "work life", "whiteboard": "work life",
+        // Gadgets
+        "phone": "gadgets", "smartphone": "gadgets", "electronics": "gadgets",
+        "keyboard": "gadgets", "camera": "gadgets", "headset": "gadgets",
+        // Night skies
+        "moon": "night skies", "stars": "night skies",
+        "night_sky": "night skies", "astronomy": "night skies",
+        "milky_way": "night skies",
+        // The pool
+        "pool": "the pool", "swimming": "the pool", "swimmer": "the pool",
+        "swimming_pool": "the pool",
+        // Parks
+        "park": "parks", "picnic": "parks", "playground": "parks",
+        "lawn": "parks", "bench": "parks",
+        // Museums
+        "museum": "museums", "exhibition": "museums",
+        "sculpture": "museums", "gallery": "museums", "statue": "museums",
+        // Toys
+        "toy": "toys", "lego": "toys", "doll": "toys",
+        "board_game": "toys", "puzzle": "toys",
+        // Weather moods
+        "rain": "weather moods", "storm": "weather moods",
+        "fog": "weather moods", "rainbow": "weather moods",
+        "lightning": "weather moods", "mist": "weather moods",
+        // Gaming
+        "video_game": "gaming", "arcade": "gaming", "console": "gaming",
+        "gamepad": "gaming",
     ]
 
     /// Normalize a raw label for lookup: lowercase, trim, collapse separators.
@@ -115,6 +158,24 @@ enum CategoryVocabulary {
             guard let topic = topic(for: label), !seen.contains(topic) else { continue }
             seen.insert(topic)
             result.append(topic)
+        }
+        return result
+    }
+
+    /// Like `topics(for:)` but preserves each topic's Vision confidence, so
+    /// callers can rank a category's representative photos by match strength.
+    /// When several raw labels collapse to one topic, the first one wins —
+    /// and since Vision returns results confidence-descending, that's the
+    /// highest-confidence label — matching `topics(for:)`'s de-duplication.
+    static func scoredTopics(
+        for scoredLabels: [PhotoObservation.ScoredCategory]
+    ) -> [(topic: String, confidence: Float)] {
+        var seen: Set<String> = []
+        var result: [(topic: String, confidence: Float)] = []
+        for label in scoredLabels {
+            guard let topic = topic(for: label.identifier), !seen.contains(topic) else { continue }
+            seen.insert(topic)
+            result.append((topic, label.confidence))
         }
         return result
     }

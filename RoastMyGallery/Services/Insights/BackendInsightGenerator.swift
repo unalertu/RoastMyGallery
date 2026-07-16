@@ -23,6 +23,13 @@ struct BackendInsightGenerator: InsightGenerating {
         /// Advances per re-generation of the same stats; the backend maps it to
         /// a narrative lens + spotlight topics (see backend/lib/prompts.js).
         let variationSeed: Int
+        /// "deep" for deep runs; nil (omitted from the JSON) for standard.
+        /// Omitting it on standard keeps the request wire-identical to older
+        /// builds, so a standard analysis works against ANY backend version —
+        /// only Deep Analysis requires the depth-aware backend to be deployed.
+        /// (Swift's synthesized encoder skips nil optionals, and the backend
+        /// treats a missing `depth` as "standard".)
+        let depth: String?
         /// Bump when the stats schema changes so the backend can branch.
         let schemaVersion = 1
     }
@@ -44,11 +51,13 @@ struct BackendInsightGenerator: InsightGenerating {
         from stats: PhotoStats,
         persona: Persona,
         appUserID: String,
-        variationSeed: Int
+        variationSeed: Int,
+        depth: AnalysisDepth
     ) async throws -> Insight {
         var request = URLRequest(url: baseURL.appending(path: "api/insight"))
         request.httpMethod = "POST"
-        request.timeoutInterval = 30
+        // Deep runs a stronger model over a 3× output budget — give it room.
+        request.timeoutInterval = depth == .deep ? 90 : 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Anti-abuse tripwire, not real auth — see AppConfig.appSharedSecret.
         request.setValue(AppConfig.appSharedSecret, forHTTPHeaderField: "X-App-Secret")
@@ -58,7 +67,8 @@ struct BackendInsightGenerator: InsightGenerating {
                 persona: persona,
                 locale: Locale.current.identifier,
                 appUserId: appUserID,
-                variationSeed: variationSeed
+                variationSeed: variationSeed,
+                depth: depth == .deep ? depth.rawValue : nil
             )
         )
 
