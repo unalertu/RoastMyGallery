@@ -41,7 +41,12 @@ struct PhotoLibraryService: PhotoLibraryProviding {
             predicates.append(NSPredicate(format: "creationDate >= %@", start as NSDate))
         }
         if let end = scope.endDate {
-            predicates.append(NSPredicate(format: "creationDate <= %@", end as NSDate))
+            // `endDate` is inclusive to whole-second granularity (the month
+            // picker stores "23:59:59 of the last day"). Compare with `<`
+            // against the next whole second so assets whose creationDate has
+            // a sub-second component inside that final second (23:59:59.4)
+            // aren't silently excluded from the range.
+            predicates.append(NSPredicate(format: "creationDate < %@", end.addingTimeInterval(1) as NSDate))
         }
         options.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
 

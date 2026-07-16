@@ -8,7 +8,7 @@ struct StatsAggregator: StatsAggregating {
     private let maxLocationClusters = 5
     private let maxCategoriesPerMonth = 5
 
-    func aggregate(_ observations: [PhotoObservation], scope: AnalysisScope) -> PhotoStats {
+    func aggregate(_ observations: [PhotoObservation], totalPhotos: Int, scope: AnalysisScope) -> PhotoStats {
         var categoryCounts: [String: Int] = [:]
         var monthlyCategoryCounts: [String: [String: Int]] = [:]
         var photosByMonth: [String: Int] = [:]
@@ -43,7 +43,10 @@ struct StatsAggregator: StatsAggregating {
                 hourBuckets[calendar.component(.hour, from: date)] += 1
             }
 
-            for category in observation.categories {
+            // Map raw Vision labels onto the friendly topic vocabulary before
+            // counting, so synonyms merge, filler is dropped, and the keys here
+            // match the ones `photoIndex` records (see CategoryVocabulary).
+            for category in CategoryVocabulary.topics(for: observation.categories) {
                 categoryCounts[category, default: 0] += 1
                 if let monthKey {
                     monthlyCategoryCounts[monthKey, default: [:]][category, default: 0] += 1
@@ -88,7 +91,7 @@ struct StatsAggregator: StatsAggregating {
         return PhotoStats(
             generatedAt: .now,
             scope: scope,
-            totalPhotos: observations.count,
+            totalPhotos: totalPhotos,
             analyzedPhotos: observations.count,
             selfieCount: selfieCount,
             screenshotCount: screenshotCount,
@@ -123,7 +126,11 @@ struct StatsAggregator: StatsAggregating {
         }
 
         for observation in observations {
-            for category in observation.categories { record(category, observation.assetID) }
+            // Same friendly-topic mapping as `aggregate`, so a segment tagged
+            // e.g. "food" resolves to a photo indexed under "food".
+            for category in CategoryVocabulary.topics(for: observation.categories) {
+                record(category, observation.assetID)
+            }
             for animal in observation.animals { record(animal, observation.assetID) }
             if observation.isSelfie { record("selfie", observation.assetID) }
             if observation.isScreenshot { record("screenshot", observation.assetID) }

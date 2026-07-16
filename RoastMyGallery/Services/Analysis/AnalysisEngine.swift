@@ -22,6 +22,16 @@ struct AnalysisProgress: Sendable, Equatable {
     var fraction: Double { total > 0 ? Double(completed) / Double(total) : 0 }
 }
 
+/// Stage 1 output: the observations plus the true number of assets the scope
+/// matched, so downstream stats can report "analyzed X of Y" honestly when
+/// some assets couldn't be analyzed (thumbnail unavailable, Vision failure).
+struct ScanOutput: Sendable {
+    /// Every image asset the scope matched in the library.
+    let totalAssets: Int
+    /// One entry per successfully analyzed asset. Always ≤ `totalAssets`.
+    let observations: [PhotoObservation]
+}
+
 /// Stage 1 — enumerate the library and run on-device Vision requests.
 /// Implementations must never move pixel data off-device.
 protocol PhotoAnalyzing: Sendable {
@@ -31,12 +41,14 @@ protocol PhotoAnalyzing: Sendable {
     func analyze(
         scope: AnalysisScope,
         onProgress: @escaping @Sendable (AnalysisProgress) -> Void
-    ) async throws -> [PhotoObservation]
+    ) async throws -> ScanOutput
 }
 
 /// Stage 2 — fold per-photo observations into the compact stats object.
 protocol StatsAggregating: Sendable {
-    func aggregate(_ observations: [PhotoObservation], scope: AnalysisScope) -> PhotoStats
+    /// - Parameter totalPhotos: the true asset count the scope matched (from
+    ///   `ScanOutput.totalAssets`), which may exceed `observations.count`.
+    func aggregate(_ observations: [PhotoObservation], totalPhotos: Int, scope: AnalysisScope) -> PhotoStats
 
     /// Category → representative asset local identifiers, for showing a
     /// matching photo next to insight segments. Stays on-device (persisted in
@@ -52,7 +64,16 @@ protocol InsightGenerating: Sendable {
     /// - Parameter appUserID: RevenueCat App User ID, passed to the backend so
     ///   it can deduct the analysis credit on success. Ignored by offline/mock
     ///   generators (which don't charge).
-    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight
+    /// - Parameter variationSeed: advances each time the *same* stats are
+    ///   re-generated (0 for a first analysis, 1 for the first Regenerate, …).
+    ///   The backend uses it to rotate the narrative "lens" and spotlight
+    ///   different topics so a fresh take actually reads differently.
+    func generateInsight(
+        from stats: PhotoStats,
+        persona: Persona,
+        appUserID: String,
+        variationSeed: Int
+    ) async throws -> Insight
 }
 
 /// Stage 4 — render the insight into a shareable image (Instagram story sized).

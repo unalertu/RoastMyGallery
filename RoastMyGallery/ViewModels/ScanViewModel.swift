@@ -102,12 +102,21 @@ final class ScanViewModel {
         guard scanTask == nil, let persona = selectedPersona else { return }
         let scope = selectedScope
 
+        // Free re-open: a bounded scope (a past month, a specific album) we've
+        // already analyzed with this persona is effectively immutable, so show
+        // the saved insight instead of re-scanning and charging again. The
+        // Regenerate action on the results screen is the paid "fresh take".
+        if scope.isCacheable, let cached = cachedRecord(scope: scope, persona: persona) {
+            phase = .results(cached)
+            return
+        }
+
         scanTask = Task {
             defer { scanTask = nil }
             do {
                 phase = .scanning(AnalysisProgress(completed: 0, total: 0))
 
-                let observations = try await environment.analyzer.analyze(scope: scope) { progress in
+                let scan = try await environment.analyzer.analyze(scope: scope) { progress in
                     Task { @MainActor [weak self] in
                         // Only update while still scanning; late callbacks are dropped.
                         if case .scanning = self?.phase {
@@ -116,16 +125,21 @@ final class ScanViewModel {
                     }
                 }
 
-                let stats = environment.aggregator.aggregate(observations, scope: scope)
+                let stats = environment.aggregator.aggregate(
+                    scan.observations,
+                    totalPhotos: scan.totalAssets,
+                    scope: scope
+                )
                 // Device-only side map (category → asset IDs) so the results
                 // screen can show a photo next to matching insight segments.
-                let photoIndex = environment.aggregator.photoIndex(for: observations)
+                let photoIndex = environment.aggregator.photoIndex(for: scan.observations)
 
                 phase = .generatingInsight
                 let insight = try await environment.insightGenerator.generateInsight(
                     from: stats,
                     persona: persona,
-                    appUserID: appUserID
+                    appUserID: appUserID,
+                    variationSeed: 0
                 )
 
                 let record = AnalysisRecord(
@@ -150,6 +164,66 @@ final class ScanViewModel {
     /// can back out mid-scan without losing the app.
     func cancelScan() {
         scanTask?.cancel()
+    }
+
+    // MARK: - Regenerate
+
+    /// Paid "fresh take" on an existing analysis. Re-runs ONLY the insight
+    /// generation over the record's already-computed `stats` — no re-scan, no
+    /// new Vision work — with an advancing `variationSeed` so the backend
+    /// rotates the narrative lens and the result reads differently. Costs 1
+    /// credit via the backend's deduct-after-success, exactly like a normal
+    /// analysis. Caller should have verified affordability (UX gate) first.
+    ///
+    /// Drives `phase` (generatingInsight → results) so both presentation
+    /// contexts work: inside the scan flow it transitions in place; from
+    /// Home/History the caller presents `ScanFlowView` to observe the phase.
+    func regenerate(from record: AnalysisRecord, appUserID: String) {
+        guard scanTask == nil else { return }
+
+        // Seed = how many insights already exist for this exact scope+persona,
+        // so the first Regenerate is 1, the next 2, … and lenses rotate.
+        let seed = history.records.filter {
+            $0.persona == record.persona && $0.stats.scope == record.stats.scope
+        }.count
+
+        scanTask = Task {
+            defer { scanTask = nil }
+            do {
+                phase = .generatingInsight
+                let insight = try await environment.insightGenerator.generateInsight(
+                    from: record.stats,
+                    persona: record.persona,
+                    appUserID: appUserID,
+                    variationSeed: seed
+                )
+
+                // A fresh narrative over the same stats/photos. Deep Vision (a
+                // separate paid, photo-level action) is intentionally not
+                // carried over — the original record keeps it in history.
+                let fresh = AnalysisRecord(
+                    id: UUID(),
+                    createdAt: .now,
+                    persona: record.persona,
+                    insight: insight,
+                    stats: record.stats,
+                    categoryPhotoIndex: record.categoryPhotoIndex,
+                    deepVision: nil
+                )
+                history.add(fresh)
+                phase = .results(fresh)
+            } catch is CancellationError {
+                // Fall back to the analysis they started from.
+                phase = .results(record)
+            } catch {
+                phase = .failed(message: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Newest saved analysis matching an exact scope + persona, if any.
+    private func cachedRecord(scope: AnalysisScope, persona: Persona) -> AnalysisRecord? {
+        history.records.first { $0.persona == persona && $0.stats.scope == scope }
     }
 
     /// Retry after failure. Keeps the chosen persona so retrying is one tap.

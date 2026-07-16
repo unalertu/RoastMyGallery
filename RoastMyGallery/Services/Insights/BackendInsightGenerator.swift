@@ -20,6 +20,9 @@ struct BackendInsightGenerator: InsightGenerating {
         /// *after* a successful generation (deduct-after-success). Optional on
         /// the wire so older/mock paths can omit it.
         let appUserId: String
+        /// Advances per re-generation of the same stats; the backend maps it to
+        /// a narrative lens + spotlight topics (see backend/lib/prompts.js).
+        let variationSeed: Int
         /// Bump when the stats schema changes so the backend can branch.
         let schemaVersion = 1
     }
@@ -37,7 +40,12 @@ struct BackendInsightGenerator: InsightGenerating {
         let generatedAt: Date
     }
 
-    func generateInsight(from stats: PhotoStats, persona: Persona, appUserID: String) async throws -> Insight {
+    func generateInsight(
+        from stats: PhotoStats,
+        persona: Persona,
+        appUserID: String,
+        variationSeed: Int
+    ) async throws -> Insight {
         var request = URLRequest(url: baseURL.appending(path: "api/insight"))
         request.httpMethod = "POST"
         request.timeoutInterval = 30
@@ -49,7 +57,8 @@ struct BackendInsightGenerator: InsightGenerating {
                 stats: stats,
                 persona: persona,
                 locale: Locale.current.identifier,
-                appUserId: appUserID
+                appUserId: appUserID,
+                variationSeed: variationSeed
             )
         )
 

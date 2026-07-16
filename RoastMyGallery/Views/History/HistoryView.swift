@@ -71,6 +71,12 @@ private struct HistoryRow: View {
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(1)
                 HStack(spacing: Theme.Spacing.s) {
+                    // The library slice this story covers (e.g. "April 2024"),
+                    // so months are distinguishable at a glance — not the
+                    // created date, which follows it.
+                    Text(record.stats.scope.displayLabel)
+                        .foregroundStyle(Theme.Colors.textPrimary.opacity(0.8))
+                    Text("·")
                     Text(record.createdAt.formatted(date: .abbreviated, time: .omitted))
                     Text("·")
                     Text(record.persona.displayName)
@@ -80,6 +86,7 @@ private struct HistoryRow: View {
                             .foregroundStyle(Theme.Colors.accent)
                     }
                 }
+                .lineLimit(1)
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
             }

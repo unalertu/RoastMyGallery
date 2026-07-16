@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
-  const { stats, persona, locale, appUserId } = req.body;
+  const { stats, persona, locale, appUserId, variationSeed } = req.body;
 
   if (!allowDailyRequest()) {
     return res.status(429).json({
@@ -68,11 +68,13 @@ export default async function handler(req, res) {
         contents: [
           {
             role: "user",
-            parts: [{ text: buildPrompt({ stats, persona, locale }) }],
+            parts: [{ text: buildPrompt({ stats, persona, locale, variationSeed: variationSeed ?? 0 }) }],
           },
         ],
         generationConfig: {
-          temperature: 0.9,
+          // High so regenerations diverge in wording; the rotating lens +
+          // spotlight (see buildPrompt) drive the structural variety.
+          temperature: 1.0,
           maxOutputTokens: 1024,
           responseMimeType: "application/json",
         },
@@ -282,7 +284,14 @@ const STATS_SCHEMA = {
   animalCounts: (v) => isBoundedRecord(v, 100, isCount),
 };
 
-const BODY_FIELDS = new Set(["stats", "persona", "locale", "schemaVersion", "appUserId"]);
+const BODY_FIELDS = new Set([
+  "stats",
+  "persona",
+  "locale",
+  "schemaVersion",
+  "appUserId",
+  "variationSeed",
+]);
 
 /** Returns an error message for invalid input, or null if valid. */
 function validate(body) {
@@ -292,11 +301,18 @@ function validate(body) {
   for (const key of Object.keys(body)) {
     if (!BODY_FIELDS.has(key)) return `Unknown field "${key}".`;
   }
-  const { stats, persona, locale, schemaVersion, appUserId } = body;
+  const { stats, persona, locale, schemaVersion, appUserId, variationSeed } = body;
 
   // Optional: RevenueCat App User ID for the post-success credit deduction.
   if (appUserId !== undefined && !(typeof appUserId === "string" && appUserId.length > 0 && appUserId.length <= 256)) {
     return 'Field "appUserId" must be a non-empty string of at most 256 characters when present.';
+  }
+
+  // Optional: advancing per-regeneration counter (0 for a first analysis).
+  // Bounded so it can't be used to smuggle a huge number into the prompt.
+  if (variationSeed !== undefined &&
+      !(Number.isInteger(variationSeed) && variationSeed >= 0 && variationSeed <= 100000)) {
+    return 'Field "variationSeed" must be a non-negative integer when present.';
   }
 
   if (!persona || !Object.hasOwn(PERSONA_PROMPTS, persona)) {

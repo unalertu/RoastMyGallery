@@ -48,12 +48,29 @@ const OUTPUT_FORMAT = `Respond with ONLY a JSON object (no markdown fences, no c
   "shareLine": "your single most quotable observation as a standalone one-liner (max 12 words)"
 }
 Rules for segments:
-- 3 to 5 segments, total under 180 words. Plain text only — no markdown, no emoji.
+- 5 to 7 segments, total under 260 words. Plain text only — no markdown, no emoji.
+- Even for a small or single-month library, write the full 5-7 beats: slow down and
+  find several distinct things to say rather than stopping after two or three.
 - Together they must read as one flowing piece in the persona's voice.
 - Set "category" ONLY to a value from the ALLOWED CATEGORIES list below, and only when
   that segment is clearly about that one subject. Otherwise use null. Never invent categories.
 Ground every observation in the numbers provided. Never invent stats that aren't in the data.
 The stats are anonymous aggregates; you know nothing else about this person.`;
+
+/**
+ * Beats don't have to be about a subject/category. The stats carry several
+ * behavioral signals that make great, distinct narrative beats and keep a
+ * short (e.g. single-month) library from sounding thin. These beats use
+ * `category: null` (they have no matching photo). Kept as one constant so it's
+ * easy to tune the voice without touching prompt assembly.
+ */
+const SIGNALS_GUIDE = `Don't only talk about subjects. The stats also describe HOW this person shoots — mine these for beats too, and use "category": null for any beat built from them:
+- WHEN: photosByHourOfDay (24 buckets, index = hour of day). Night owl, dawn shooter, lunchtime-only?
+- WHO's in frame: faceCountBuckets ("0"/"1"/"2+"). Solo self-portraits, group-photo person, or faceless scenes?
+- WHAT THEY KEEP: favoriteCount vs analyzedPhotos, and screenshotCount. Ruthless curator or favorites everything? Screenshot hoarder?
+- WHERE: topLocationClusters shares. Homebody orbiting one area vs scattered wanderer.
+- OVER TIME: photosByMonth and categoriesByMonth. Phases that flared up and faded.
+Aim to spread the beats across several of these lenses instead of stacking them all on the top one or two categories.`;
 
 /**
  * Category tags the model may attach to a segment — only things that actually
@@ -112,16 +129,93 @@ ${DEEP_VISION_OUTPUT_FORMAT(imageCount)}
 ${language}`;
 }
 
-export function buildPrompt({ stats, persona, locale }) {
+/**
+ * Narrative "lenses" — which angle to lead with. Rotated by variationSeed so
+ * that regenerating the SAME stats opens on a different facet each time
+ * instead of always leading with the biggest category.
+ */
+const LENSES = [
+  "Lead with the SUBJECTS they shoot most — what they keep pointing the camera at.",
+  "Lead with TIMING — when in the day (photosByHourOfDay) and across months they shoot, and what that rhythm says.",
+  "Lead with WHERE — how their locations cluster (topLocationClusters): rooted in one place vs roaming.",
+  "Lead with WHAT THEY KEEP — favorites vs everything, and the screenshot pile: choosy curator or hoarder?",
+  "Lead with WHO's in frame (faceCountBuckets) — solo self-portraits, group-photo person, or faceless scenes.",
+];
+
+/**
+ * Small deterministic PRNG (mulberry32) so a given variationSeed always yields
+ * the same lens + spotlight — reproducible and testable, no global state.
+ */
+function mulberry32(seed) {
+  let a = (seed >>> 0) || 1;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Weighted sample without replacement — pick up to `count` categories favoring
+ * the ones they shoot most, but not deterministically the top N, so different
+ * seeds spotlight different real subjects.
+ */
+function weightedSample(entries, count, rand) {
+  const pool = entries.map((e) => ({ ...e }));
+  const picked = [];
+  while (picked.length < count && pool.length) {
+    const total = pool.reduce((sum, e) => sum + e.weight, 0);
+    if (total <= 0) break;
+    let r = rand() * total;
+    let i = 0;
+    while (i < pool.length - 1 && r >= pool[i].weight) {
+      r -= pool[i].weight;
+      i++;
+    }
+    picked.push(pool[i].value);
+    pool.splice(i, 1);
+  }
+  return picked;
+}
+
+/**
+ * The per-run variation block: a rotating lens plus 1–2 weight-sampled
+ * spotlight subjects. `variationSeed` advances each time the same stats are
+ * regenerated (0 = first analysis) — see ScanViewModel.regenerate.
+ */
+function variationBlock({ stats, variationSeed }) {
+  const rand = mulberry32(variationSeed + 1);
+  const lens = LENSES[variationSeed % LENSES.length];
+
+  const catEntries = (stats.topCategories || [])
+    .filter((c) => c && typeof c.category === "string" && c.count > 0)
+    .map((c) => ({ value: c.category, weight: c.count }));
+  const spotlight = weightedSample(catEntries, 2, rand);
+  const spotlightLine = spotlight.length
+    ? `- Make sure at least one beat is about: ${spotlight.join(", ")}. Only if the numbers honestly support it — never invent.`
+    : "";
+
+  return `VARIATION — make this run read differently from any previous take on the same library:
+- ${lens}
+${spotlightLine}`;
+}
+
+export function buildPrompt({ stats, persona, locale, variationSeed = 0 }) {
   const language = locale
     ? `Write in the natural language implied by the locale "${locale}" (e.g. en_US → English, tr_TR → Turkish). JSON keys and category values stay in English exactly as given.`
     : "Write in English.";
 
   return `${PERSONA_PROMPTS[persona]}
 
+${variationBlock({ stats, variationSeed })}
+
 ${OUTPUT_FORMAT}
 
 ALLOWED CATEGORIES: ${JSON.stringify(allowedCategories(stats))}
+
+${SIGNALS_GUIDE}
 
 ${language}
 

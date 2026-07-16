@@ -36,6 +36,19 @@ enum AnalysisScope: Sendable, Hashable {
         return nil
     }
 
+    /// Whether a completed analysis for this scope may be re-shown from cache
+    /// (for free) instead of re-scanning and charging again. Bounded scopes —
+    /// a specific past month, a specific album — are effectively immutable, so
+    /// re-analyzing the identical thing should cost nothing; the explicit
+    /// "Regenerate" action is the paid path to a fresh take. Full history is
+    /// always growing, so it always re-scans.
+    var isCacheable: Bool {
+        switch self {
+        case .fullHistory, .lastThreeMonths: return false
+        case .dateRange, .album: return true
+        }
+    }
+
     /// Human-readable label, used both in-app and as narrative context sent
     /// to the insight backend (it's part of the `PhotoStats` JSON payload).
     var displayLabel: String {

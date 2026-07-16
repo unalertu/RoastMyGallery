@@ -106,6 +106,12 @@ struct HomeView: View {
                     .font(Theme.Typography.title)
                     .multilineTextAlignment(.leading)
 
+                // Which slice of the library this story is about (e.g.
+                // "April 2024") — the created date sits in the row above.
+                Label(record.stats.scope.displayLabel, systemImage: "calendar")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
                 ForEach(record.insight.superlatives.prefix(2), id: \.self) { superlative in
                     HStack(spacing: Theme.Spacing.s) {
                         Circle()

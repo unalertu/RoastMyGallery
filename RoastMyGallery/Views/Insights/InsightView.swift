@@ -5,12 +5,21 @@ import SwiftUI
 /// persisted `AnalysisRecord`, so nothing here can trigger a re-scan.
 struct InsightView: View {
     let record: AnalysisRecord
+    /// True only when rendered as the scan flow's `.results` phase, where the
+    /// shared `ScanViewModel` already drives the screen — so Regenerate can
+    /// transition in place. Home/History render this view pushed in a
+    /// NavigationStack, so Regenerate there presents its own `ScanFlowView` to
+    /// observe the generation phase and show the fresh result.
+    var isInScanFlow = false
 
     @Environment(PurchaseManager.self) private var purchaseManager
+    @Environment(ScanViewModel.self) private var scanViewModel
 
     @State private var shareCardSet: ShareCardSet?
     @State private var showPaywall = false
+    @State private var paywallContext: PaywallView.Context = .general
     @State private var showDeepAnalysis = false
+    @State private var showRegenerateFlow = false
     @State private var renderErrorMessage: String?
 
     var body: some View {
@@ -42,6 +51,8 @@ struct InsightView: View {
                         }
                         .buttonStyle(PrimaryButtonStyle())
 
+                        regenerateButton
+
                         deepAnalysisButton
                     }
                     .padding(.top, Theme.Spacing.s)
@@ -52,10 +63,16 @@ struct InsightView: View {
         }
         .foregroundStyle(Theme.Colors.textPrimary)
         .sheet(isPresented: $showPaywall) {
-            PaywallView(context: .deepVision(have: purchaseManager.creditBalance))
+            PaywallView(context: paywallContext)
         }
         .sheet(isPresented: $showDeepAnalysis) {
             DeepAnalysisConsentView(sourceRecord: record)
+        }
+        .fullScreenCover(isPresented: $showRegenerateFlow) {
+            // From Home/History: show the in-flight generation and the fresh
+            // result. `regenerate(from:)` has already set the phase before this
+            // presents, so the flow opens straight onto "writing your story".
+            ScanFlowView()
         }
         .sheet(item: $shareCardSet) { set in
             ShareCardPickerSheet(cards: set.cards)
@@ -83,6 +100,13 @@ struct InsightView: View {
             Text(record.insight.headline)
                 .font(Theme.Typography.display)
                 .padding(.top, Theme.Spacing.s)
+
+            // Which slice of the library this story is about (e.g. "April
+            // 2024", an album name, or "Full history") — distinct from the
+            // created date above, which is only when it was generated.
+            Label(record.stats.scope.displayLabel, systemImage: "calendar")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.textSecondary)
         }
         .padding(.top, Theme.Spacing.l)
     }
@@ -94,11 +118,12 @@ struct InsightView: View {
     @ViewBuilder
     private var narrative: some View {
         if let segments = record.insight.segments, !segments.isEmpty {
+            let assetIDsPerSegment = deduplicatedAssetIDs(for: segments)
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
                     InsightSegmentCard(
                         segment: segment,
-                        assetIDs: assetIDs(for: segment)
+                        assetIDs: assetIDsPerSegment[index]
                     )
                 }
             }
@@ -110,11 +135,31 @@ struct InsightView: View {
         }
     }
 
-    /// Candidate photos for a segment's category — empty (text-only card)
-    /// when the segment is untagged or the scan indexed no photo for it.
-    private func assetIDs(for segment: Insight.Segment) -> [String] {
-        guard let category = segment.category else { return [] }
-        return record.categoryPhotoIndex?[category] ?? []
+    /// Candidate photos for each segment, in render order, de-duplicated
+    /// across the whole narrative: once a photo is claimed by one beat it's
+    /// pushed to the back of later beats' candidate lists, so two segments
+    /// that share a category (e.g. two "screenshot" beats) surface different
+    /// photos when the category indexed more than one. Each key holds up to
+    /// two assets (see `StatsAggregator.photoIndex`), which covers the common
+    /// case; if a category has only one photo, that lone photo is reused
+    /// rather than showing nothing. Untagged/unindexed segments stay empty
+    /// (text-only card).
+    private func deduplicatedAssetIDs(for segments: [Insight.Segment]) -> [[String]] {
+        var claimed: Set<String> = []
+        return segments.map { segment in
+            guard let category = segment.category,
+                  let candidates = record.categoryPhotoIndex?[category],
+                  !candidates.isEmpty else { return [] }
+
+            // Prefer photos no earlier beat has already shown.
+            let fresh = candidates.filter { !claimed.contains($0) }
+            let ordered = fresh + candidates.filter { claimed.contains($0) }
+
+            // Claim the one the card will most likely display (its first
+            // resolvable candidate) so the next beat avoids it.
+            if let first = ordered.first { claimed.insert(first) }
+            return ordered
+        }
     }
 
     private var superlativeGrid: some View {
@@ -157,11 +202,43 @@ struct InsightView: View {
             .buttonStyle(SoftButtonStyle())
         } else {
             Button {
+                paywallContext = .deepVision(have: purchaseManager.creditBalance)
                 showPaywall = true
             } label: {
                 Label("Deep Photo Analysis · needs \(PurchaseManager.deepVisionCost) credits", systemImage: "sparkles")
             }
             .buttonStyle(SoftButtonStyle())
+        }
+    }
+
+    /// Paid "fresh take": re-writes the narrative over the same stats with an
+    /// advancing variation seed (see `ScanViewModel.regenerate`). Always shown —
+    /// the results screen is the natural place to ask for a different read.
+    private var regenerateButton: some View {
+        Button {
+            regenerate()
+        } label: {
+            Label(
+                "Get a fresh take · \(PurchaseManager.analysisCost) credit",
+                systemImage: "arrow.triangle.2.circlepath"
+            )
+        }
+        .buttonStyle(SoftButtonStyle())
+    }
+
+    private func regenerate() {
+        // Client-side affordability check is UX only; the backend is the
+        // authoritative gate (deduct-after-success), same as a normal analysis.
+        guard purchaseManager.canAfford(PurchaseManager.analysisCost) else {
+            paywallContext = .analysis(have: purchaseManager.creditBalance)
+            showPaywall = true
+            return
+        }
+        scanViewModel.regenerate(from: record, appUserID: purchaseManager.appUserID)
+        // Inside the scan flow the shared view model already drives this screen;
+        // from Home/History we present the flow to observe generation + result.
+        if !isInScanFlow {
+            showRegenerateFlow = true
         }
     }
 

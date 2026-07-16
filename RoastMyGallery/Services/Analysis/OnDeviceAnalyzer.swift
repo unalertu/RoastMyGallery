@@ -2,6 +2,7 @@ import Foundation
 import Photos
 import Vision
 import UIKit
+import os
 
 /// Stage 1 implementation: enumerates the library via `PhotoLibraryProviding`,
 /// downsamples each asset to a small thumbnail, and runs Vision requests
@@ -20,8 +21,15 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
     private let maxConcurrentRequests = 4
     /// Minimum confidence for a classification label to be kept.
     private let classificationThreshold: Float = 0.4
-    /// Keep at most this many labels per photo so stats stay compact.
-    private let maxCategoriesPerPhoto = 3
+    /// Keep at most this many labels per photo so stats stay compact. Kept a
+    /// little generous because `CategoryVocabulary` drops filler labels and
+    /// merges synonyms downstream, so a few raw labels survive into topics.
+    private let maxCategoriesPerPhoto = 5
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "RoastMyGallery",
+        category: "Scan"
+    )
 
     init(library: PhotoLibraryProviding) {
         self.library = library
@@ -30,9 +38,10 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
     func analyze(
         scope: AnalysisScope,
         onProgress: @escaping @Sendable (AnalysisProgress) -> Void
-    ) async throws -> [PhotoObservation] {
+    ) async throws -> ScanOutput {
         let fetchResult = library.fetchAssets(in: scope)
         guard fetchResult.count > 0 else { throw AnalysisError.emptyLibrary }
+        Self.logger.info("Scan '\(scope.displayLabel, privacy: .public)': fetched \(fetchResult.count) assets")
 
         var assets: [PHAsset] = []
         assets.reserveCapacity(fetchResult.count)
@@ -69,7 +78,9 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
             }
         }
 
-        return observations
+        let skipped = total - observations.count
+        Self.logger.info("Scan '\(scope.displayLabel, privacy: .public)': analyzed \(observations.count)/\(total) assets (\(skipped) skipped)")
+        return ScanOutput(totalAssets: total, observations: observations)
     }
 
     // MARK: - Per-asset work
@@ -89,7 +100,7 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
             try handler.perform([classify, faces, animals])
         } catch {
             // A single failed photo shouldn't sink the scan; log and skip.
-            // TODO: route through a proper logger.
+            Self.logger.warning("Vision failed for asset, skipping: \(error.localizedDescription, privacy: .public)")
             return nil
         }
 
@@ -122,13 +133,34 @@ final class OnDeviceAnalyzer: PhotoAnalyzing {
         )
     }
 
+    /// Loads the analysis thumbnail, trying a local-only request first and
+    /// falling back to allowing network access.
+    ///
+    /// The fallback matters: with iCloud Photos set to "Optimize iPhone
+    /// Storage" most originals are NOT on device, and a local-only
+    /// `.highQualityFormat` request returns nil for them — without the retry
+    /// those photos would be silently missing from every stat (the classic
+    /// "analyzed 61 photos in a 900-photo month" bug). Only the ~512px
+    /// derivative is fetched, never the full original, and Vision still runs
+    /// entirely on-device, so the privacy contract is unchanged.
+    private func loadThumbnail(for asset: PHAsset) async -> CGImage? {
+        if let local = await requestThumbnail(for: asset, allowNetwork: false) {
+            return local
+        }
+        let remote = await requestThumbnail(for: asset, allowNetwork: true)
+        if remote == nil {
+            Self.logger.warning("Thumbnail unavailable (even via iCloud), skipping asset")
+        }
+        return remote
+    }
+
     /// Async wrapper around PHImageManager. `deliveryMode = .highQualityFormat`
     /// guarantees the handler fires exactly once, which keeps the continuation safe.
-    private func loadThumbnail(for asset: PHAsset) async -> CGImage? {
+    private func requestThumbnail(for asset: PHAsset, allowNetwork: Bool) async -> CGImage? {
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
-        options.isNetworkAccessAllowed = false // never pull originals from iCloud during a scan
+        options.isNetworkAccessAllowed = allowNetwork
         options.isSynchronous = false
 
         return await withCheckedContinuation { continuation in

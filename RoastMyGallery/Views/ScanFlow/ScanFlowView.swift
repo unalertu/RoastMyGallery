@@ -27,7 +27,7 @@ struct ScanFlowView: View {
                     case .scanning, .generatingInsight:
                         ScanProgressView()
                     case .results(let record):
-                        InsightView(record: record)
+                        InsightView(record: record, isInScanFlow: true)
                     case .failed(let message):
                         failureScreen(message)
                     }
