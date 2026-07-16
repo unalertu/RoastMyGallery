@@ -1,10 +1,22 @@
 import SwiftUI
 
-/// One rendered card option in the share picker.
+/// One rendered card option in the share picker. The single-card styles hold
+/// one image; the Full Story option holds one image per panel (shared
+/// together as a set).
 struct RenderedShareCard: Identifiable {
     let id: String
     let title: String
-    let image: UIImage
+    let images: [UIImage]
+
+    init(id: String, title: String, image: UIImage) {
+        self.init(id: id, title: title, images: [image])
+    }
+
+    init(id: String, title: String, images: [UIImage]) {
+        self.id = id
+        self.title = title
+        self.images = images
+    }
 }
 
 /// Identifiable wrapper so InsightView can drive `.sheet(item:)`.
@@ -13,8 +25,9 @@ struct ShareCardSet: Identifiable {
     let cards: [RenderedShareCard]
 }
 
-/// Share preview: swipe (or tap the style chips) between the classic and
-/// editorial cards, then share the selected one. Calm pastel modal styling.
+/// Share preview: swipe (or tap the style chips) between the classic card,
+/// the editorial card, and the Full Story panel set, then share the selected
+/// one. Calm pastel modal styling.
 struct ShareCardPickerSheet: View {
     let cards: [RenderedShareCard]
     @State private var selectedID: String
@@ -36,13 +49,7 @@ struct ShareCardPickerSheet: View {
                 VStack(spacing: Theme.Spacing.m) {
                     TabView(selection: $selectedID) {
                         ForEach(cards) { card in
-                            Image(uiImage: card.image)
-                                .resizable()
-                                .scaledToFit()
-                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
-                                .softShadow()
-                                .padding(.horizontal, Theme.Spacing.l)
-                                .padding(.vertical, Theme.Spacing.s)
+                            cardPreview(card)
                                 .tag(card.id)
                         }
                     }
@@ -52,16 +59,29 @@ struct ShareCardPickerSheet: View {
                     stylePicker
 
                     if let selected {
+                        if selected.images.count > 1 {
+                            Text("Stories takes one panel at a time — save the set to post them in order.")
+                                .font(Theme.Typography.caption)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, Theme.Spacing.l)
+                        }
+
                         ShareLink(
-                            item: Image(uiImage: selected.image),
-                            preview: SharePreview("My Gallery, Roasted", image: Image(uiImage: selected.image))
+                            items: selected.images.map { Image(uiImage: $0) },
+                            preview: { SharePreview("My Gallery, Roasted", image: $0) }
                         ) {
-                            Label("Share This Card", systemImage: "square.and.arrow.up")
-                                .font(Theme.Typography.headline)
-                                .foregroundStyle(Theme.Colors.background)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, Theme.Spacing.m)
-                                .background(Theme.Colors.accent, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
+                            Label(
+                                selected.images.count > 1
+                                    ? "Share All \(selected.images.count) Panels"
+                                    : "Share This Card",
+                                systemImage: "square.and.arrow.up"
+                            )
+                            .font(Theme.Typography.headline)
+                            .foregroundStyle(Theme.Colors.background)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.Spacing.m)
+                            .background(Theme.Colors.accent, in: RoundedRectangle(cornerRadius: Theme.Radius.button))
                         }
                         .padding(.horizontal, Theme.Spacing.l)
                         .padding(.bottom, Theme.Spacing.m)
@@ -73,6 +93,35 @@ struct ShareCardPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.Colors.background, for: .navigationBar)
         }
+    }
+
+    /// Single-image cards preview as-is; the Full Story set gets its own inner
+    /// pager (with dots) so every panel can be inspected before sharing. The
+    /// inner pager claims horizontal swipes over the image — the style chips
+    /// below remain the way to switch between card styles there.
+    @ViewBuilder
+    private func cardPreview(_ card: RenderedShareCard) -> some View {
+        if card.images.count > 1 {
+            TabView {
+                ForEach(Array(card.images.enumerated()), id: \.offset) { _, image in
+                    cardImage(image)
+                }
+            }
+            .tabViewStyle(.page)
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+        } else if let image = card.images.first {
+            cardImage(image)
+        }
+    }
+
+    private func cardImage(_ image: UIImage) -> some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
+            .softShadow()
+            .padding(.horizontal, Theme.Spacing.l)
+            .padding(.vertical, Theme.Spacing.s)
     }
 
     /// Segmented style chips, synced with the swipeable pager.

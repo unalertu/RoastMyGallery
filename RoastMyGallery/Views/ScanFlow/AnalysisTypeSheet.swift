@@ -43,7 +43,7 @@ struct AnalysisTypeSheet: View {
                             highlights: [
                                 "Your story in 5–7 sharp beats",
                                 "Top 10 subjects and habits",
-                                "Any scope: all time, a month, an album",
+                                "Focused on a month or an album you pick",
                             ],
                             footnote: "Ready in seconds"
                         ) {

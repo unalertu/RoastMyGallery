@@ -29,8 +29,9 @@ final class ScanViewModel {
     /// No default on purpose — the picker presents both personas neutrally
     /// and the user must choose before scanning.
     var selectedPersona: Persona?
-    /// Defaults to full history so the free/standard flow needs zero extra
-    /// taps — scoped modes (date range, album) are opted into explicitly.
+    /// Starts at full history as an internal placeholder, but every tier now
+    /// requires an explicit scope before scanning (standard: a month or album;
+    /// deep: a date range) — the picker's CTA stays disabled until one is set.
     var selectedScope: AnalysisScope = .fullHistory
     /// Chosen on the "New Analysis" options sheet, before the flow presents.
     var selectedDepth: AnalysisDepth = .standard
@@ -69,6 +70,30 @@ final class ScanViewModel {
     /// Albums available for the album-scoped analysis mode.
     func fetchAlbums() -> [PhotoLibraryService.AlbumInfo] {
         environment.photoLibrary.fetchUserAlbums()
+    }
+
+    /// Whether the user granted *limited* photo access. Album-scoped analysis
+    /// can't enumerate album contents under limited access — PhotoKit only
+    /// exposes the hand-picked selection, so every album reads as empty — so
+    /// the album picker uses this to steer the user to Full Access rather than
+    /// showing a misleading "no albums" list.
+    var isLimitedPhotoAccess: Bool {
+        environment.photoLibrary.currentAuthorizationStatus() == .limited
+    }
+
+    /// TEMP DIAGNOSTIC — human-readable current photo authorization, surfaced
+    /// on the album picker's empty state so we can confirm full-vs-limited
+    /// access on-device without the console. Remove once the album picker bug
+    /// is understood.
+    var photoAccessDebugDescription: String {
+        switch environment.photoLibrary.currentAuthorizationStatus() {
+        case .authorized: return "authorized (full)"
+        case .limited: return "limited"
+        case .denied: return "denied"
+        case .restricted: return "restricted"
+        case .notDetermined: return "notDetermined"
+        @unknown default: return "unknown"
+        }
     }
 
     // MARK: - Permission

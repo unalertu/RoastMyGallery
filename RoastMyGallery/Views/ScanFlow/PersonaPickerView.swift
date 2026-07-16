@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// Ready-to-scan screen: choose what to analyze (full history, a month, or an
-/// album), then a voice. Two equal, neutral persona cards — no default
-/// selection, no premium badges on those; the scope chips are the only
-/// gated part of this screen.
+/// Ready-to-scan screen: choose what to analyze (a month or an album — an
+/// explicit scope is required, there's no all-history default), then a voice.
+/// Two equal, neutral persona cards — no default selection, no premium badges.
 struct PersonaPickerView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(PurchaseManager.self) private var purchaseManager
@@ -11,9 +10,11 @@ struct PersonaPickerView: View {
     @State private var showPaywall = false
     @State private var paywallContext: PaywallView.Context = .general
     @State private var showMonthPicker = false
-    @State private var showAlbumPicker = false
     @State private var showDateRangePicker = false
-    @State private var albums: [PhotoLibraryService.AlbumInfo] = []
+    // Album picker is presented via `.sheet(item:)` (not a bool) so the fetched
+    // albums are captured at trigger time — `.sheet(isPresented:)` snapshots
+    // sibling @State one render too early and delivers an empty list.
+    @State private var albumPickerData: AlbumPickerData?
 
     private var isDeep: Bool { scanViewModel.selectedDepth == .deep }
     private var analysisCost: Int { PurchaseManager.cost(for: scanViewModel.selectedDepth) }
@@ -84,8 +85,12 @@ struct PersonaPickerView: View {
                 scanViewModel.selectedScope = scope
             }
         }
-        .sheet(isPresented: $showAlbumPicker) {
-            AlbumPickerSheet(albums: albums) { scope in
+        .sheet(item: $albumPickerData) { data in
+            AlbumPickerSheet(
+                albums: data.albums,
+                isLimitedAccess: data.isLimitedAccess,
+                debugStatus: data.debugStatus
+            ) { scope in
                 scanViewModel.selectedScope = scope
             }
         }
@@ -96,20 +101,21 @@ struct PersonaPickerView: View {
         }
     }
 
-    /// Deep requires a chosen date range AND consent; standard just needs a
-    /// voice (its scope defaults to full history).
+    /// Both tiers require an explicit scope: deep needs a chosen date range AND
+    /// consent; standard needs a chosen month or album (no all-history default).
     private var canStart: Bool {
         guard scanViewModel.selectedPersona != nil else { return false }
         if isDeep {
             return isDateRangeSelected && scanViewModel.hasDeepConsent
         }
-        return true
+        return isDateRangeSelected || isAlbumSelected
     }
 
     private var startFootnote: String {
         if scanViewModel.selectedPersona == nil { return "Choose a voice to begin" }
         if isDeep && !isDateRangeSelected { return "Pick a date range to analyze" }
         if isDeep && !scanViewModel.hasDeepConsent { return "Agree to photo captioning to continue" }
+        if !isDeep && !(isDateRangeSelected || isAlbumSelected) { return "Pick a month or album to analyze" }
         let unit = analysisCost == 1 ? "credit" : "credits"
         return "\(analysisCost) \(unit) • you have \(purchaseManager.creditBalance)"
     }
@@ -120,18 +126,10 @@ struct PersonaPickerView: View {
         VStack(spacing: Theme.Spacing.s) {
             HStack(spacing: Theme.Spacing.s) {
                 ScopeChip(
-                    title: "All Time",
-                    systemImage: "clock",
-                    isSelected: scanViewModel.selectedScope == .fullHistory,
-                    isLocked: false
-                ) {
-                    scanViewModel.selectedScope = .fullHistory
-                }
-                ScopeChip(
                     title: "Choose Month",
                     systemImage: "calendar",
                     isSelected: isDateRangeSelected,
-                    isLocked: !purchaseManager.hasUnlockedModes
+                    isLocked: false
                 ) {
                     tappedMonthChip()
                 }
@@ -139,13 +137,15 @@ struct PersonaPickerView: View {
                     title: "Choose Album",
                     systemImage: "square.stack",
                     isSelected: isAlbumSelected,
-                    isLocked: !purchaseManager.hasUnlockedModes
+                    isLocked: false
                 ) {
                     tappedAlbumChip()
                 }
             }
 
-            Text("Analyzing: \(scanViewModel.selectedScope.displayLabel)")
+            Text(isDateRangeSelected || isAlbumSelected
+                 ? "Analyzing: \(scanViewModel.selectedScope.displayLabel)"
+                 : "Pick a month or album to analyze")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
@@ -230,22 +230,15 @@ struct PersonaPickerView: View {
     }
 
     private func tappedMonthChip() {
-        guard purchaseManager.hasUnlockedModes else {
-            paywallContext = .lockedMode(name: "Date & month picking")
-            showPaywall = true
-            return
-        }
         showMonthPicker = true
     }
 
     private func tappedAlbumChip() {
-        guard purchaseManager.hasUnlockedModes else {
-            paywallContext = .lockedMode(name: "Album analysis")
-            showPaywall = true
-            return
-        }
-        albums = scanViewModel.fetchAlbums()
-        showAlbumPicker = true
+        albumPickerData = AlbumPickerData(
+            albums: scanViewModel.fetchAlbums(),
+            isLimitedAccess: scanViewModel.isLimitedPhotoAccess,
+            debugStatus: scanViewModel.photoAccessDebugDescription
+        )
     }
 }
 
@@ -419,22 +412,44 @@ private struct MonthPickerSheet: View {
     }
 }
 
-/// Lists the user's non-empty regular albums; tapping one sets that album as
-/// the scan scope.
+/// Snapshot handed to `AlbumPickerSheet` via `.sheet(item:)`. Bundling the
+/// fetched albums into the presentation item (rather than reading sibling
+/// @State from inside a `.sheet(isPresented:)` closure) is what guarantees the
+/// sheet sees the freshly-fetched list instead of a one-render-stale empty one.
+private struct AlbumPickerData: Identifiable {
+    let id = UUID()
+    let albums: [PhotoLibraryService.AlbumInfo]
+    let isLimitedAccess: Bool
+    let debugStatus: String
+}
+
+/// Lists the user's non-empty albums; tapping one sets that album as the scan
+/// scope. Under *limited* photo access the list comes back empty no matter how
+/// many albums the user actually has — PhotoKit hides album membership for
+/// non-selected photos — so that case gets a dedicated "grant Full Access"
+/// screen instead of the generic empty state.
 private struct AlbumPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let albums: [PhotoLibraryService.AlbumInfo]
+    let isLimitedAccess: Bool
+    /// TEMP DIAGNOSTIC — remove with `debugFooter` once resolved.
+    let debugStatus: String
     let onSelect: (AnalysisScope) -> Void
 
     var body: some View {
         NavigationStack {
             Group {
-                if albums.isEmpty {
-                    EmptyStateView(
-                        systemImage: "photo.stack",
-                        title: "No albums found",
-                        message: "Create an album in the Photos app, then come back here."
-                    )
+                if albums.isEmpty && isLimitedAccess {
+                    limitedAccessState
+                } else if albums.isEmpty {
+                    VStack(spacing: Theme.Spacing.l) {
+                        EmptyStateView(
+                            systemImage: "photo.stack",
+                            title: "No albums found",
+                            message: "Create an album in the Photos app, then come back here."
+                        )
+                        debugFooter
+                    }
                     .padding(Theme.Spacing.l)
                 } else {
                     List(albums) { album in
@@ -468,5 +483,47 @@ private struct AlbumPickerSheet: View {
         }
         .tint(Theme.Colors.accent)
         .foregroundStyle(Theme.Colors.textPrimary)
+    }
+
+    /// Shown when albums come back empty *because* access is limited — the fix
+    /// is Full Access, not "create an album," so we say exactly that and link
+    /// straight to Settings.
+    private var limitedAccessState: some View {
+        VStack(spacing: Theme.Spacing.l) {
+            Spacer()
+            Image(systemName: "lock.rectangle.stack")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(Theme.Colors.accent)
+            VStack(spacing: Theme.Spacing.s) {
+                Text("Full access needed for albums")
+                    .font(Theme.Typography.title)
+                    .multilineTextAlignment(.center)
+                Text("You've given Roast My Gallery access to only selected photos, so your albums stay hidden. Switch to Full Access to analyze a whole album — your photos still never leave your device.")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(Theme.Typography.bodyLineSpacing)
+            }
+            Spacer()
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+        }
+        .padding(Theme.Spacing.l)
+    }
+
+    /// TEMP DIAGNOSTIC — proves this build is running the new picker code and
+    /// reports the live photo-access level. Remove once the bug is resolved.
+    private var debugFooter: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            Text("DEBUG · new picker build")
+            Text("photo access: \(debugStatus) · albums fetched: \(albums.count)")
+        }
+        .font(.system(size: 11, design: .monospaced))
+        .foregroundStyle(Theme.Colors.textSecondary)
+        .multilineTextAlignment(.center)
     }
 }

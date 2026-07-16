@@ -16,6 +16,9 @@ struct InsightView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
 
     @State private var shareCardSet: ShareCardSet?
+    /// True while the Full Story photos load + panels render (the two quick
+    /// cards are instant; the story set is what takes a moment).
+    @State private var isPreparingShareCards = false
     @State private var showPaywall = false
     @State private var paywallContext: PaywallView.Context = .general
     @State private var showDeepAnalysis = false
@@ -45,11 +48,20 @@ struct InsightView: View {
 
                     VStack(spacing: Theme.Spacing.m) {
                         Button {
-                            renderShareCard()
+                            renderShareCards()
                         } label: {
-                            Label("Create Share Card", systemImage: "square.and.arrow.up")
+                            if isPreparingShareCards {
+                                HStack(spacing: Theme.Spacing.s) {
+                                    ProgressView()
+                                        .tint(Theme.Colors.background)
+                                    Text("Preparing Cards…")
+                                }
+                            } else {
+                                Label("Create Share Card", systemImage: "square.and.arrow.up")
+                            }
                         }
                         .buttonStyle(PrimaryButtonStyle())
+                        .disabled(isPreparingShareCards)
 
                         regenerateButton
 
@@ -233,19 +245,33 @@ struct InsightView: View {
         }
     }
 
-    private func renderShareCard() {
+    private func renderShareCards() {
         // Share cards are unlimited in the credit model — no gating here.
-        do {
-            let classic = try ShareCardRenderer()
-                .renderCard(insight: record.insight, stats: record.stats)
-            let editorial = try AltShareCardRenderer()
-                .renderCard(insight: record.insight, stats: record.stats)
-            shareCardSet = ShareCardSet(cards: [
-                RenderedShareCard(id: "classic", title: "Classic", image: classic),
-                RenderedShareCard(id: "editorial", title: "Editorial", image: editorial),
-            ])
-        } catch {
-            renderErrorMessage = error.localizedDescription
+        guard !isPreparingShareCards else { return }
+        isPreparingShareCards = true
+        Task { @MainActor in
+            defer { isPreparingShareCards = false }
+            do {
+                let classic = try ShareCardRenderer()
+                    .renderCard(insight: record.insight, stats: record.stats)
+                let editorial = try AltShareCardRenderer()
+                    .renderCard(insight: record.insight, stats: record.stats)
+
+                // The Full Story set: resolve the same per-segment photos the
+                // narrative cards above show (async — iCloud originals may
+                // need a fetch), then render one 9:16 panel per page.
+                let panels = await FullStoryBuilder.panels(for: record)
+                let storyImages = try await FullStoryRenderer()
+                    .render(record: record, panels: panels)
+
+                shareCardSet = ShareCardSet(cards: [
+                    RenderedShareCard(id: "classic", title: "Classic", image: classic),
+                    RenderedShareCard(id: "editorial", title: "Editorial", image: editorial),
+                    RenderedShareCard(id: "fullstory", title: "Full Story", images: storyImages),
+                ])
+            } catch {
+                renderErrorMessage = error.localizedDescription
+            }
         }
     }
 }

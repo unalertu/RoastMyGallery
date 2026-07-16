@@ -68,18 +68,30 @@ struct PhotoLibraryService: PhotoLibraryProviding {
     }
 
     func fetchUserAlbums() -> [AlbumInfo] {
+        // TEMP DIAGNOSTIC — remove once the empty-album-picker bug is resolved.
+        // status raw values: 0=notDetermined 1=restricted 2=denied 3=authorized 4=limited
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        NSLog("📷 [AlbumDebug] authorizationStatus(.readWrite).rawValue = %d", authStatus.rawValue)
+
         let imageOptions = PHFetchOptions()
         imageOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
 
         var albums: [AlbumInfo] = []
         var seenIDs = Set<String>()
 
-        // 1. User-created regular albums
+        // 1. User albums of every kind — regular, synced, imported, and
+        //    iCloud shared. `.any` (vs `.albumRegular`) is what makes shared
+        //    and synced albums show up in the picker instead of silently
+        //    dropping out.
         let userCollections = PHAssetCollection.fetchAssetCollections(
-            with: .album, subtype: .albumRegular, options: nil
+            with: .album, subtype: .any, options: nil
         )
+        NSLog("📷 [AlbumDebug] .any user collections enumerated: %d", userCollections.count)
         userCollections.enumerateObjects { collection, _, _ in
             let count = PHAsset.fetchAssets(in: collection, options: imageOptions).count
+            NSLog("📷 [AlbumDebug] user album '%@' subtype=%d imageCount=%d",
+                  collection.localizedTitle ?? "nil",
+                  collection.assetCollectionSubtype.rawValue, count)
             guard count > 0 else { return }
             let id = collection.localIdentifier
             guard seenIDs.insert(id).inserted else { return }
@@ -118,6 +130,7 @@ struct PhotoLibraryService: PhotoLibraryProviding {
             }
         }
 
+        NSLog("📷 [AlbumDebug] returning %d albums total (user + smart)", albums.count)
         return albums.sorted { $0.photoCount > $1.photoCount }
     }
 
