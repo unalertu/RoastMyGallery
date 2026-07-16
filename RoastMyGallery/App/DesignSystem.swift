@@ -28,6 +28,11 @@ enum Theme {
         static let powderBlue = Color(hex: 0xC0D2DE)
         static let cream = Color(hex: 0xF4EDE3)
 
+        /// Sage wash / deep sage pair — small-text-on-wash version of the
+        /// sage family (used by the Hand-Picked chip in History).
+        static let sageSoft = Color(hex: 0xE2EBDA)
+        static let sageDeep = Color(hex: 0x5E7C49)
+
         /// Muted brick for errors — visible but not alarming.
         static let danger = Color(hex: 0xB3564F)
 
@@ -37,6 +42,24 @@ enum Theme {
             switch persona {
             case .roast: return dustyRose
             case .analyst: return powderBlue
+            }
+        }
+
+        /// Analysis-tier chip identities (History rows). Standard stays
+        /// quiet, Deep borrows the accent, Hand-Picked takes the sage family.
+        static func kindText(_ kind: AnalysisKind) -> Color {
+            switch kind {
+            case .standard: return textSecondary
+            case .deep: return accent
+            case .handPicked: return sageDeep
+            }
+        }
+
+        static func kindBackground(_ kind: AnalysisKind) -> Color {
+            switch kind {
+            case .standard: return cream
+            case .deep: return accentSoft
+            case .handPicked: return sageSoft
             }
         }
 

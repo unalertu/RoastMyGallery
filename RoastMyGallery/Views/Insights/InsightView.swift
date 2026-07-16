@@ -22,7 +22,6 @@ struct InsightView: View {
     @State private var showPaywall = false
     @State private var paywallContext: PaywallView.Context = .general
     @State private var showDeepAnalysis = false
-    @State private var showRegenerateFlow = false
     @State private var renderErrorMessage: String?
 
     var body: some View {
@@ -79,12 +78,6 @@ struct InsightView: View {
         }
         .sheet(isPresented: $showDeepAnalysis) {
             DeepAnalysisConsentView(persona: record.persona, sourceStats: record.stats)
-        }
-        .fullScreenCover(isPresented: $showRegenerateFlow) {
-            // From Home/History: show the in-flight generation and the fresh
-            // result. `regenerate(from:)` has already set the phase before this
-            // presents, so the flow opens straight onto "writing your story".
-            ScanFlowView()
         }
         .sheet(item: $shareCardSet) { set in
             ShareCardPickerSheet(cards: set.cards)
@@ -238,10 +231,13 @@ struct InsightView: View {
             return
         }
         scanViewModel.regenerate(from: record, appUserID: purchaseManager.appUserID)
-        // Inside the scan flow the shared view model already drives this screen;
-        // from Home/History we present the flow to observe generation + result.
+        // Inside the scan flow the shared view model already drives this
+        // screen; from Home/History we present the flow (RootView's cover,
+        // over the whole tab shell) to observe generation + result.
+        // `regenerate` has already set the phase, so it opens straight onto
+        // "writing your story".
         if !isInScanFlow {
-            showRegenerateFlow = true
+            scanViewModel.presentFlow()
         }
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import Photos
 import Observation
+import UIKit
 
 /// Drives the modal scan flow: permission → persona pick → scan → aggregate →
 /// LLM insight → results. Owns the pipeline services (via `AppEnvironment`)
@@ -26,6 +27,28 @@ final class ScanViewModel {
     }
 
     private(set) var phase: Phase = .needsPermission
+    /// Whether the modal scan flow is on screen. Hoisted here (instead of
+    /// view-local @State) so every surface can present it: Home's buttons,
+    /// the status banner, a completion-notification tap. `RootView` owns the
+    /// one `fullScreenCover` bound to this; `dismiss()` inside the flow flips
+    /// it back through that binding.
+    var isFlowPresented = false
+    /// A run that finished while the flow was minimized, waiting to be seen.
+    /// Drives the "ready" state of `AnalysisStatusBanner`; cleared when the
+    /// user opens the result, dismisses the banner, or starts a new scan.
+    private(set) var backgroundCompletion: AnalysisRecord?
+    /// Same, for a run that failed while minimized.
+    private(set) var backgroundFailureMessage: String?
+
+    /// True while the pipeline is actually working (scan → insight → captions).
+    /// The minimized-run banner and the "don't clobber a paid run" guards all
+    /// key off this.
+    var isRunActive: Bool {
+        switch phase {
+        case .scanning, .generatingInsight, .captioning: return true
+        default: return false
+        }
+    }
     /// No default on purpose — the picker presents both personas neutrally
     /// and the user must choose before scanning.
     var selectedPersona: Persona?
@@ -60,6 +83,16 @@ final class ScanViewModel {
     ///   starts scope-less (the user must pick a date range) and with consent
     ///   reset — it's an explicit opt-in every run.
     func prepareForNewScan(depth: AnalysisDepth = .standard) {
+        // A run is already working: never cancel-and-reset it from the New
+        // Analysis entry points — surface the running flow instead. Charges
+        // are deduct-after-success, so cancelling a nearly-done run and
+        // starting fresh is exactly how you'd pay twice for one story.
+        guard !isRunActive else {
+            isFlowPresented = true
+            return
+        }
+        backgroundCompletion = nil
+        backgroundFailureMessage = nil
         cancelScan()
         selectedPersona = nil
         selectedScope = .fullHistory
@@ -95,6 +128,64 @@ final class ScanViewModel {
         case .restricted: return "restricted"
         case .notDetermined: return "notDetermined"
         @unknown default: return "unknown"
+        }
+    }
+
+    // MARK: - Presentation
+
+    func presentFlow() { isFlowPresented = true }
+
+    /// Dismisses the flow while any active run keeps working (the status
+    /// banner takes over). Also the moment we lazily ask for notification
+    /// permission — the user just expressed "tell me later", so the prompt
+    /// has context. Never re-prompts once decided.
+    func minimizeFlow() {
+        isFlowPresented = false
+        if isRunActive {
+            Task { await AnalysisNotifier.requestAuthorizationIfNeeded() }
+        }
+    }
+
+    /// Banner tap on a finished run: jump straight to the saved result.
+    func openBackgroundResult() {
+        guard let record = backgroundCompletion else { return }
+        openResult(withID: record.id)
+    }
+
+    /// Banner tap on a failed run: reopen the flow on its failure screen
+    /// (the phase still holds `.failed`, so Try Again is right there).
+    func reopenFailedRun() {
+        backgroundFailureMessage = nil
+        isFlowPresented = true
+    }
+
+    /// The small ✕ on the banner: acknowledge without opening anything.
+    func dismissBackgroundNotice() {
+        backgroundCompletion = nil
+        backgroundFailureMessage = nil
+        AnalysisNotifier.clearDelivered()
+    }
+
+    /// Entry point for completion-notification taps. Safe on cold launch,
+    /// where the phase machine knows nothing about the tapped record — it's
+    /// looked up in history (already persisted before the notification could
+    /// have been posted) instead.
+    func openResult(withID id: UUID?) {
+        backgroundCompletion = nil
+        backgroundFailureMessage = nil
+        AnalysisNotifier.clearDelivered()
+        // A newer run is in flight — show it rather than clobbering its phase.
+        if isRunActive {
+            isFlowPresented = true
+            return
+        }
+        if let record = id.flatMap({ tapped in history.records.first { $0.id == tapped } }) {
+            phase = .results(record)
+            isFlowPresented = true
+        } else if case .failed = phase {
+            // A failure notification carries no record ID — reopen the flow
+            // on its failure screen so Try Again is one tap away.
+            isFlowPresented = true
         }
     }
 
@@ -163,7 +254,11 @@ final class ScanViewModel {
         }
 
         scanTask = Task {
-            defer { scanTask = nil }
+            let keepAlive = BackgroundKeepAlive(name: "analysis-run")
+            defer {
+                scanTask = nil
+                keepAlive.end()
+            }
             do {
                 phase = .scanning(AnalysisProgress(completed: 0, total: 0))
 
@@ -229,12 +324,30 @@ final class ScanViewModel {
                 )
                 history.add(record)
                 phase = .results(record)
+                runFinished(with: record)
             } catch is CancellationError {
                 phase = .readyToScan
             } catch {
-                phase = .failed(message: error.localizedDescription)
+                let message = error.localizedDescription
+                phase = .failed(message: message)
+                runFailed(message: message)
             }
         }
+    }
+
+    // MARK: - Background completion
+
+    /// A run just produced (and persisted) a record. If the flow is minimized,
+    /// arm the in-app "ready" banner; if the whole app is backgrounded, also
+    /// post a local notification so the user hears about it from outside.
+    private func runFinished(with record: AnalysisRecord) {
+        if !isFlowPresented { backgroundCompletion = record }
+        AnalysisNotifier.notifyCompletionIfBackgrounded(record)
+    }
+
+    private func runFailed(message: String) {
+        if !isFlowPresented { backgroundFailureMessage = message }
+        AnalysisNotifier.notifyFailureIfBackgrounded()
     }
 
     /// Resolves which photo each segment card will display (via the shared
@@ -316,7 +429,11 @@ final class ScanViewModel {
         }.count
 
         scanTask = Task {
-            defer { scanTask = nil }
+            let keepAlive = BackgroundKeepAlive(name: "regenerate-run")
+            defer {
+                scanTask = nil
+                keepAlive.end()
+            }
             do {
                 phase = .generatingInsight
                 let insight = try await environment.insightGenerator.generateInsight(
@@ -351,11 +468,14 @@ final class ScanViewModel {
                 )
                 history.add(fresh)
                 phase = .results(fresh)
+                runFinished(with: fresh)
             } catch is CancellationError {
                 // Fall back to the analysis they started from.
                 phase = .results(record)
             } catch {
-                phase = .failed(message: error.localizedDescription)
+                let message = error.localizedDescription
+                phase = .failed(message: message)
+                runFailed(message: message)
             }
         }
     }
@@ -372,5 +492,30 @@ final class ScanViewModel {
         cancelScan()
         phase = .readyToScan
         refreshPermissionPhase()
+    }
+}
+
+/// Holds a UIKit background-task assertion for the lifetime of one analysis
+/// run, buying ~30 seconds of extra runtime if the user backgrounds the app
+/// mid-run — enough for a typical insight call to land (and be charged
+/// exactly once) instead of dying in flight. If iOS calls time first, the
+/// assertion is released and the run simply suspends with the app: on return
+/// it either completed or surfaces the normal failure screen. Because the
+/// backend charges deduct-after-success, a run that never finishes never
+/// charges — this class only ever helps a single charge complete.
+@MainActor
+private final class BackgroundKeepAlive {
+    private var taskID: UIBackgroundTaskIdentifier = .invalid
+
+    init(name: String) {
+        taskID = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    func end() {
+        guard taskID != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(taskID)
+        taskID = .invalid
     }
 }

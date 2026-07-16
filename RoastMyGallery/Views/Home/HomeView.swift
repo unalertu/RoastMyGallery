@@ -8,7 +8,6 @@ struct HomeView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(PurchaseManager.self) private var purchaseManager
 
-    @State private var showScanFlow = false
     @State private var showPaywall = false
     @State private var showTypeSheet = false
     @State private var showHandPicked = false
@@ -47,9 +46,6 @@ struct HomeView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         }
-        .fullScreenCover(isPresented: $showScanFlow) {
-            ScanFlowView()
-        }
         .fullScreenCover(isPresented: $showHandPicked) {
             HandPickedAnalysisView()
         }
@@ -64,19 +60,27 @@ struct HomeView: View {
     }
 
     /// Entry point for both the first-run CTA and the "New Analysis" button:
-    /// open the type chooser.
+    /// open the type chooser — unless a minimized run is already working, in
+    /// which case reopen it (starting fresh mid-run is how you'd pay twice).
     private func startScan() {
+        if scanViewModel.isRunActive {
+            scanViewModel.presentFlow()
+            return
+        }
         showTypeSheet = true
     }
 
+    /// The scan flow itself is presented by `RootView` off the shared
+    /// `isFlowPresented`, so the banner and notifications can reopen it from
+    /// any tab — Home only flips the flag.
     private func route(_ choice: AnalysisTypeSheet.Choice) {
         switch choice {
         case .standard:
             scanViewModel.prepareForNewScan(depth: .standard)
-            showScanFlow = true
+            scanViewModel.presentFlow()
         case .deep:
             scanViewModel.prepareForNewScan(depth: .deep)
-            showScanFlow = true
+            scanViewModel.presentFlow()
         case .handPicked:
             showHandPicked = true
         }

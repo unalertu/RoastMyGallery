@@ -33,3 +33,42 @@ struct AnalysisRecord: Codable, Identifiable, Equatable, Hashable, Sendable {
     /// to asset IDs — the IDs themselves are never uploaded.
     var photoCaptions: [String: String]? = nil
 }
+
+/// Which of the three purchasable flows produced a record. Not stored as its
+/// own field — derived from what each flow already writes (`deepVision` /
+/// `depth`), so legacy records classify correctly with no migration: anything
+/// saved before tiers existed has both fields nil and reads as `.standard`.
+enum AnalysisKind: String, CaseIterable, Identifiable, Sendable {
+    /// The classic 1-credit stats analysis.
+    case standard
+    /// The 5-credit date-range Deep Analysis.
+    case deep
+    /// The 5-credit hand-picked Deep Vision batch.
+    case handPicked
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .standard: return "Standard"
+        case .deep: return "Deep"
+        case .handPicked: return "Hand-Picked"
+        }
+    }
+
+    /// Same icons the "New Analysis" options sheet uses for each flow.
+    var symbolName: String {
+        switch self {
+        case .standard: return "wand.and.stars"
+        case .deep: return "sparkles"
+        case .handPicked: return "photo.badge.plus"
+        }
+    }
+}
+
+extension AnalysisRecord {
+    var kind: AnalysisKind {
+        if deepVision != nil { return .handPicked }
+        return (depth ?? .standard) == .deep ? .deep : .standard
+    }
+}

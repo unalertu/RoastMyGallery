@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct RoastMyGalleryApp: App {
@@ -14,13 +15,20 @@ struct RoastMyGalleryApp: App {
         let environment = AppEnvironment.live()
         let history = AnalysisHistoryStore()
         let purchases = PurchaseManager()
-        _purchaseManager = State(initialValue: purchases)
-        _historyStore = State(initialValue: history)
-        _scanViewModel = State(initialValue: ScanViewModel(
+        let scanVM = ScanViewModel(
             environment: environment,
             history: history,
             purchaseManager: purchases
-        ))
+        )
+        _purchaseManager = State(initialValue: purchases)
+        _historyStore = State(initialValue: history)
+        _scanViewModel = State(initialValue: scanVM)
+
+        // Completion-notification taps must find their way back to the
+        // finished analysis. The delegate has to be registered before launch
+        // finishes so a tap that cold-starts the app is still delivered.
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
+        NotificationRouter.shared.openAnalysis = { id in scanVM.openResult(withID: id) }
         #if DEBUG
         ShareCardDebugExporter.renderAllIfRequested()
         #endif

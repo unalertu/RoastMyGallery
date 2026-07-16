@@ -75,8 +75,15 @@ struct ScanProgressView: View {
 
             Spacer()
 
-            Button("Cancel") { scanViewModel.cancelScan() }
-                .buttonStyle(QuietButtonStyle())
+            VStack(spacing: Theme.Spacing.s) {
+                // Same as the toolbar's minimize: the run keeps working and
+                // the status banner (plus a completion notification if the
+                // app is backgrounded) picks it up from here.
+                Button("Continue in Background") { scanViewModel.minimizeFlow() }
+                    .buttonStyle(SoftButtonStyle())
+                Button("Cancel") { scanViewModel.cancelScan() }
+                    .buttonStyle(QuietButtonStyle())
+            }
         }
         .padding(Theme.Spacing.xl)
     }

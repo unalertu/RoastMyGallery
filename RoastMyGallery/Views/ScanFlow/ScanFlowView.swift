@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// The modal analysis flow, presented full-screen from Home:
-/// permission (if needed) → persona pick → scan progress → results.
+/// The modal analysis flow, presented full-screen from `RootView` (off the
+/// shared `ScanViewModel.isFlowPresented`): permission (if needed) → persona
+/// pick → scan progress → results.
 ///
-/// The Close button is always available — including mid-scan, where it
-/// cancels the in-flight work — so the user can back out at any point.
-/// Results are already persisted by the time `.results` shows, so closing
-/// from there simply lands on Home with the new analysis visible.
+/// A leading button is always available, but its meaning depends on the run:
+/// while the pipeline is working it MINIMIZES (the run continues behind
+/// `AnalysisStatusBanner`; cancelling lives on the progress screen), and
+/// otherwise it closes the flow. Results are already persisted by the time
+/// `.results` shows, so closing from there lands on Home with the new
+/// analysis visible.
 struct ScanFlowView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(\.dismiss) private var dismiss
@@ -37,13 +40,27 @@ struct ScanFlowView: View {
             .foregroundStyle(Theme.Colors.textPrimary)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        scanViewModel.cancelScan()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Theme.Colors.textSecondary)
+                    if scanViewModel.isRunActive {
+                        // Mid-run: minimize, never cancel — the run keeps
+                        // working and the status banner takes over. Explicit
+                        // cancellation stays on the progress screen.
+                        Button {
+                            scanViewModel.minimizeFlow()
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                        .accessibilityLabel("Minimize — analysis continues in the background")
+                    } else {
+                        Button {
+                            scanViewModel.cancelScan()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
                     }
                 }
                 if case .results = scanViewModel.phase {
