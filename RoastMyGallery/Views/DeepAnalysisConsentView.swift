@@ -275,8 +275,9 @@ struct DeepAnalysisConsentView: View {
             )
 
             // The backend deducted the 5 credits (deduct-after-success);
-            // re-sync the local balance to match.
-            await purchaseManager.reconcileAfterSpend()
+            // reflect the spend locally right away (and survive read-after-
+            // write lag on the balance re-read — see `reflectSpend`).
+            await purchaseManager.reflectSpend(PurchaseManager.deepVisionCost)
 
             previews = freshPreviews
             save(result)

@@ -197,11 +197,22 @@ final class PurchaseManager {
     /// network failure rather than zeroing a real balance.
     func refreshBalance() async {
         guard Purchases.isConfigured else { return }
+        if let server = await fetchServerBalance() {
+            creditBalance = server
+        } else {
+            primeCachedBalance()
+        }
+    }
+
+    /// One authoritative CRD read, or nil when it can't be determined (SDK
+    /// unconfigured / network failure). Callers decide how to merge it.
+    private func fetchServerBalance() async -> Int? {
+        guard Purchases.isConfigured else { return nil }
         do {
             let currencies = try await Purchases.shared.virtualCurrencies()
-            creditBalance = currencies.all[Self.creditCurrencyCode]?.balance ?? 0
+            return currencies.all[Self.creditCurrencyCode]?.balance ?? 0
         } catch {
-            primeCachedBalance()
+            return nil
         }
     }
 
@@ -310,5 +321,28 @@ final class PurchaseManager {
         guard Purchases.isConfigured else { return }
         Purchases.shared.invalidateVirtualCurrenciesCache()
         await refreshBalance()
+    }
+
+    /// Reflect a spend the backend has *already* charged (deduct-after-success):
+    /// drop the local balance immediately for instant UI feedback, then
+    /// reconcile with RevenueCat.
+    ///
+    /// The key subtlety this exists to solve: a server-side Virtual Currency
+    /// adjustment is not always readable by the client the instant it commits
+    /// (read-after-write lag), so a naive re-read right after a spend can
+    /// return the *pre-spend* balance and bounce the number straight back up —
+    /// making it look like the credit never came off. A spend can only ever
+    /// lower the balance, so we clamp the reconcile with `min`: a fresh server
+    /// read is accepted, but a stale (higher) one can't undo the optimistic
+    /// deduction. A later full refresh (customerInfoStream / bootstrap)
+    /// corrects any residual drift.
+    func reflectSpend(_ amount: Int) async {
+        let optimistic = max(0, creditBalance - amount)
+        creditBalance = optimistic
+        guard Purchases.isConfigured else { return }
+        Purchases.shared.invalidateVirtualCurrenciesCache()
+        if let server = await fetchServerBalance() {
+            creditBalance = min(server, optimistic)
+        }
     }
 }

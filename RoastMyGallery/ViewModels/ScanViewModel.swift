@@ -42,11 +42,13 @@ final class ScanViewModel {
 
     private let environment: AppEnvironment
     private let history: AnalysisHistoryStore
+    private let purchaseManager: PurchaseManager
     private var scanTask: Task<Void, Never>?
 
-    init(environment: AppEnvironment, history: AnalysisHistoryStore) {
+    init(environment: AppEnvironment, history: AnalysisHistoryStore, purchaseManager: PurchaseManager) {
         self.environment = environment
         self.history = history
+        self.purchaseManager = purchaseManager
         refreshPermissionPhase()
     }
 
@@ -193,6 +195,12 @@ final class ScanViewModel {
                     depth: depth
                 )
 
+                // The backend just charged for this insight (deduct-after-
+                // success, 1 CRD standard / 5 CRD deep). Reflect it locally now
+                // so Home/Settings show the drop immediately — a cache re-open
+                // above returns before here and is never charged.
+                await purchaseManager.reflectSpend(PurchaseManager.cost(for: depth))
+
                 // Deep only: caption the photos the results screen will show.
                 // Best-effort — the 5 credits bought the long story above; a
                 // captioning hiccup (or a cancel while captioning) must never
@@ -318,6 +326,10 @@ final class ScanViewModel {
                     variationSeed: seed,
                     depth: depth
                 )
+
+                // A fresh take is charged like any analysis (1 CRD standard /
+                // 5 CRD deep) — reflect the spend as soon as it succeeds.
+                await purchaseManager.reflectSpend(PurchaseManager.cost(for: depth))
 
                 // A fresh narrative over the same stats/photos. Deep Vision (a
                 // separate paid, photo-level action) is intentionally not

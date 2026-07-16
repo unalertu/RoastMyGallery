@@ -13,8 +13,14 @@ struct RoastMyGalleryApp: App {
 
         let environment = AppEnvironment.live()
         let history = AnalysisHistoryStore()
+        let purchases = PurchaseManager()
+        _purchaseManager = State(initialValue: purchases)
         _historyStore = State(initialValue: history)
-        _scanViewModel = State(initialValue: ScanViewModel(environment: environment, history: history))
+        _scanViewModel = State(initialValue: ScanViewModel(
+            environment: environment,
+            history: history,
+            purchaseManager: purchases
+        ))
         #if DEBUG
         ShareCardDebugExporter.renderAllIfRequested()
         #endif

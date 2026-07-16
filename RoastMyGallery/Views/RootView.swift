@@ -18,8 +18,9 @@ struct RootView: View {
 
 #Preview {
     let history = AnalysisHistoryStore()
+    let purchases = PurchaseManager()
     RootView()
-        .environment(ScanViewModel(environment: .live(), history: history))
-        .environment(PurchaseManager())
+        .environment(ScanViewModel(environment: .live(), history: history, purchaseManager: purchases))
+        .environment(purchases)
         .environment(history)
 }
