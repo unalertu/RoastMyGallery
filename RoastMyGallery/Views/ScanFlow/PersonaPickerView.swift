@@ -61,7 +61,7 @@ struct PersonaPickerView: View {
                 if purchaseManager.canAfford(analysisCost) {
                     scanViewModel.startScan(appUserID: purchaseManager.appUserID)
                 } else {
-                    paywallContext = .analysis(have: purchaseManager.gemBalance)
+                    paywallContext = .analysis(cost: analysisCost, have: purchaseManager.gemBalance)
                     showPaywall = true
                 }
             }
@@ -88,8 +88,7 @@ struct PersonaPickerView: View {
         .sheet(item: $albumPickerData) { data in
             AlbumPickerSheet(
                 albums: data.albums,
-                isLimitedAccess: data.isLimitedAccess,
-                debugStatus: data.debugStatus
+                isLimitedAccess: data.isLimitedAccess
             ) { scope in
                 scanViewModel.selectedScope = scope
             }
@@ -236,8 +235,7 @@ struct PersonaPickerView: View {
     private func tappedAlbumChip() {
         albumPickerData = AlbumPickerData(
             albums: scanViewModel.fetchAlbums(),
-            isLimitedAccess: scanViewModel.isLimitedPhotoAccess,
-            debugStatus: scanViewModel.photoAccessDebugDescription
+            isLimitedAccess: scanViewModel.isLimitedPhotoAccess
         )
     }
 }
@@ -337,8 +335,10 @@ private struct MonthPickerSheet: View {
     private static let calendar = Calendar.current
     private static let monthSymbols = DateFormatter().standaloneMonthSymbols ?? []
     private static let years: [Int] = {
+        // 30 years covers imported/scanned photo libraries, not just the
+        // iPhone era — older libraries were unreachable at the previous 8.
         let current = calendar.component(.year, from: .now)
-        return Array((current - 8)...current)
+        return Array((current - 30)...current)
     }()
 
     @State private var selectedMonthIndex: Int
@@ -420,7 +420,6 @@ private struct AlbumPickerData: Identifiable {
     let id = UUID()
     let albums: [PhotoLibraryService.AlbumInfo]
     let isLimitedAccess: Bool
-    let debugStatus: String
 }
 
 /// Lists the user's non-empty albums; tapping one sets that album as the scan
@@ -432,8 +431,6 @@ private struct AlbumPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let albums: [PhotoLibraryService.AlbumInfo]
     let isLimitedAccess: Bool
-    /// TEMP DIAGNOSTIC — remove with `debugFooter` once resolved.
-    let debugStatus: String
     let onSelect: (AnalysisScope) -> Void
 
     var body: some View {
@@ -442,14 +439,11 @@ private struct AlbumPickerSheet: View {
                 if albums.isEmpty && isLimitedAccess {
                     limitedAccessState
                 } else if albums.isEmpty {
-                    VStack(spacing: Theme.Spacing.l) {
-                        EmptyStateView(
-                            systemImage: "photo.stack",
-                            title: "No albums found",
-                            message: "Create an album in the Photos app, then come back here."
-                        )
-                        debugFooter
-                    }
+                    EmptyStateView(
+                        systemImage: "photo.stack",
+                        title: "No albums found",
+                        message: "Create an album in the Photos app, then come back here."
+                    )
                     .padding(Theme.Spacing.l)
                 } else {
                     List(albums) { album in
@@ -513,17 +507,5 @@ private struct AlbumPickerSheet: View {
             .buttonStyle(PrimaryButtonStyle())
         }
         .padding(Theme.Spacing.l)
-    }
-
-    /// TEMP DIAGNOSTIC — proves this build is running the new picker code and
-    /// reports the live photo-access level. Remove once the bug is resolved.
-    private var debugFooter: some View {
-        VStack(spacing: Theme.Spacing.xs) {
-            Text("DEBUG · new picker build")
-            Text("photo access: \(debugStatus) · albums fetched: \(albums.count)")
-        }
-        .font(.system(size: 11, design: .monospaced))
-        .foregroundStyle(Theme.Colors.textSecondary)
-        .multilineTextAlignment(.center)
     }
 }

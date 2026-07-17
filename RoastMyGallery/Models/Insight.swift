@@ -31,12 +31,6 @@ struct Insight: Codable, Sendable, Hashable, Identifiable {
     /// e.g. ("Selfie ratio", "31% — the front camera is tired").
     let superlatives: [Superlative]
 
-    /// True when this insight came from the on-device generator (offline or
-    /// backend unavailable/rate-limited) rather than the AI backend. Optional
-    /// so records persisted before this field existed decode as nil (= not a
-    /// preview). The UI shows a subtle, non-alarming note when set.
-    var isPreview: Bool?
-
     struct Superlative: Codable, Sendable, Hashable {
         let title: String
         let detail: String

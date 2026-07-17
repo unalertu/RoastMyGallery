@@ -14,7 +14,11 @@ struct DataTransparencyView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                     explainer
 
-                    if let stats = history.latest?.stats {
+                    // Latest stats that were actually sent to the backend: a
+                    // standalone hand-picked run's placeholder stats never
+                    // leave the device, so showing them here as "the payload"
+                    // would be wrong (see latestScanStats).
+                    if let stats = history.latestScanStats {
                         Text("LATEST DATA PAYLOAD")
                             .font(Theme.Typography.label)
                             .tracking(1.5)
@@ -44,7 +48,7 @@ struct DataTransparencyView: View {
             bullet(icon: "xmark.circle",
                    text: "What never leaves: your photos, photo identifiers, precise locations, names — anything identifying.")
             bullet(icon: "hand.raised",
-                   text: "Deep Analysis (Pro) uploads only photos you hand-pick, and only after you approve that exact batch.")
+                   text: "Deep Analysis uploads only photos you hand-pick, and only after you approve that exact batch.")
         }
         .themedCard()
     }

@@ -64,16 +64,19 @@ export default async function handler(req, res) {
   }
   const { stats, persona, locale, appUserId, variationSeed, runId } = req.body;
   const depth = req.body.depth === "deep" ? "deep" : "standard";
+  const cost = depth === "deep" ? CREDIT_COSTS.deep_analysis : CREDIT_COSTS.analysis;
 
-  // Deep runs cost 5 CRD: worth a read-only affordability pre-check against
-  // the authoritative balance before burning the (pricier) Gemini call.
+  // Read-only affordability pre-check against the authoritative balance
+  // before burning the Gemini call — for BOTH tiers. Without it a stale-high
+  // client balance (or a hostile client) gets a free generation: the deduct-
+  // after-success below just logs a failed deduction and returns the story.
   // null = balance unknown (RC not configured / unreachable) → fail-open.
   // Deduction still happens only after success below.
-  if (depth === "deep" && appUserId) {
+  if (appUserId) {
     const balance = await getCreditBalance(appUserId);
-    if (balance !== null && balance < CREDIT_COSTS.deep_analysis) {
+    if (balance !== null && balance < cost) {
       return res.status(402).json({
-        error: "Not enough credits for a deep analysis.",
+        error: "Not enough credits for this analysis.",
         reason: "insufficient_credits",
       });
     }
@@ -215,7 +218,6 @@ export default async function handler(req, res) {
     if (claim === "duplicate") {
       console.warn(`Skipping deduction for ${appUserId}: run ${runId} was already charged.`);
     } else {
-      const cost = depth === "deep" ? CREDIT_COSTS.deep_analysis : CREDIT_COSTS.analysis;
       const spend = await spendCredits(appUserId, cost);
       if (!spend.ok) {
         console.error(

@@ -141,7 +141,7 @@ struct SettingsView: View {
                 Task {
                     isRestoring = true
                     defer { isRestoring = false }
-                    restoreMessage = message(for: await purchaseManager.restorePurchases())
+                    restoreMessage = await purchaseManager.restorePurchases().userMessage
                 }
             } label: {
                 HStack(spacing: Theme.Spacing.s) {
@@ -383,17 +383,6 @@ struct SettingsView: View {
             URLQueryItem(name: "body", value: body)
         ]
         return components.url
-    }
-
-    private func message(for result: PurchaseManager.RestoreResult) -> String {
-        switch result {
-        case .restoredSubscription:
-            return "Your subscription has been restored. Monthly gems will keep topping up."
-        case .noPurchases:
-            return "No subscription was found on this Apple ID. (Consumable gem packs can't be restored — see support.)"
-        case .failed(let reason):
-            return reason
-        }
     }
 
     private var appVersion: String {

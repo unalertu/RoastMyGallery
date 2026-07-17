@@ -162,6 +162,9 @@ enum AnalysisError: LocalizedError {
     case photoAccessDenied
     case emptyLibrary
     case cancelled
+    /// The backend's authoritative balance check rejected the run (HTTP 402)
+    /// — the local balance was stale-high. No gems were taken.
+    case insufficientGems
     case backendUnavailable(underlying: Error?)
 
     var errorDescription: String? {
@@ -172,6 +175,8 @@ enum AnalysisError: LocalizedError {
             return "No photos found in the selected time range."
         case .cancelled:
             return "Analysis was cancelled."
+        case .insufficientGems:
+            return "Not enough gems for this analysis. No gems were taken — top up and try again."
         case .backendUnavailable:
             return "Couldn't reach the insight service. Try again in a bit."
         }

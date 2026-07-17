@@ -90,7 +90,15 @@ struct BackendInsightGenerator: InsightGenerating {
             throw AnalysisError.backendUnavailable(underlying: error)
         }
 
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        guard let http = response as? HTTPURLResponse else {
+            throw AnalysisError.backendUnavailable(underlying: nil)
+        }
+        // The backend pre-checks the authoritative balance before generating
+        // (both tiers) — surface its rejection as what it is, not an outage.
+        if http.statusCode == 402 {
+            throw AnalysisError.insufficientGems
+        }
+        guard (200..<300).contains(http.statusCode) else {
             throw AnalysisError.backendUnavailable(underlying: nil)
         }
 

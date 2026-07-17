@@ -18,6 +18,16 @@ final class AnalysisHistoryStore {
 
     var latest: AnalysisRecord? { records.first }
 
+    /// Stats from the newest record that actually scanned the library.
+    /// Standalone hand-picked (Deep Vision) runs carry all-zero placeholder
+    /// stats that were never computed OR sent anywhere, so they're skipped.
+    /// This is the one rule every stats surface shares — Home's teaser and
+    /// snapshot, Gallery Stats, and Data Transparency — so they can't disagree
+    /// about what the "latest" scan is.
+    var latestScanStats: PhotoStats? {
+        records.first(where: { $0.stats.analyzedPhotos > 0 })?.stats
+    }
+
     private let fileURL: URL
 
     init(fileURL: URL = AnalysisHistoryStore.defaultFileURL) {

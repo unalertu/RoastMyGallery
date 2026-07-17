@@ -25,6 +25,38 @@ targets:
     dependencies:
       - package: RevenueCat
         product: RevenueCat
+    # Ship guard: a Release build refuses to proceed while any DEBUG-only
+    # code marked "STRIP BEFORE SHIPPING" is still in the source tree.
+    # Runs before Compile Sources (fail-fast); Debug builds skip instantly.
+    # Gated on CONFIGURATION=Release rather than "only when installing"
+    # because Archive always builds Release, but a plain Release build does
+    # not "install" — this way both are covered.
+    preBuildScripts:
+      - name: "Ship Guard — no STRIP BEFORE SHIPPING in Release"
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" != "Release" ]; then
+            echo "Ship-guard: skipped (${CONFIGURATION:-manual} build)."
+            exit 0
+          fi
+          MARKER="STRIP BEFORE SHIPPING"
+          # Scoped to the app source tree only — never .git, backend,
+          # DerivedData, or generated/worktree directories.
+          MATCHES=$(grep -rn --include="*.swift" "${MARKER}" "${SRCROOT}/RoastMyGallery" || true)
+          if [ -z "${MATCHES}" ]; then
+            echo "Ship-guard: no '${MARKER}' markers found — OK to ship."
+            exit 0
+          fi
+          echo "error: DEBUG-only code marked '${MARKER}' is still present in a Release build:"
+          echo "${MATCHES}" | while IFS= read -r line; do
+            file="${line%%:*}"
+            rest="${line#*:}"
+            lineno="${rest%%:*}"
+            # path:line: error: … renders as a clickable red error in Xcode.
+            echo "${file}:${lineno}: error: remove this '${MARKER}' code before shipping"
+          done
+          exit 1
     info:
       path: RoastMyGallery/Info.plist
       properties:
@@ -35,12 +67,16 @@ targets:
           Roast My Gallery analyzes your photos entirely on this device to
           find patterns worth roasting. Your photos never leave your phone
           unless you explicitly choose Deep Analysis.
+        # Add-only access, used solely when the user taps "Save Image" on a
+        # share card from the system share sheet.
+        NSPhotoLibraryAddUsageDescription: >-
+          Roast My Gallery saves the share cards you create to your photo
+          library when you choose to save them.
+        # Standard HTTPS only — no exempt encryption (answers the App Store
+        # Connect export-compliance question automatically).
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground # cream, matches Theme.Colors.background
-        # Dev-only: lets the simulator reach `vercel dev` on http://localhost.
-        # Production traffic is HTTPS; remove this if you stop using localhost.
-        NSAppTransportSecurity:
-          NSAllowsLocalNetworking: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
     settings:
@@ -50,6 +86,32 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
         # TODO: set DEVELOPMENT_TEAM to your Apple Developer team ID
+
+# Explicit scheme so the Run action loads the local StoreKit Configuration
+# file. Without this, RevenueCat can only fetch products from App Store Connect
+# (which needs the Paid Apps Agreement signed + products "Ready to Submit" +
+# propagation) and offerings come back empty. Pointing Run at
+# RoastMyGallery.storekit lets the paywall populate from the local products
+# (credits_pack_10 / credits_pack_50) during development.
+# NOTE: local StoreKit purchases do NOT trigger RevenueCat's server-side
+# Virtual Currency grant — the gem balance won't rise from a simulated buy.
+# Full gem-grant verification still requires real App Store sandbox.
+schemes:
+  RoastMyGallery:
+    build:
+      targets:
+        RoastMyGallery: all
+    run:
+      config: Debug
+      storeKitConfiguration: RoastMyGallery.storekit
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
 
 # TODO once you have a real backend: add a Config/*.xcconfig per environment
 # holding BACKEND_BASE_URL (never API keys — those live server-side only).

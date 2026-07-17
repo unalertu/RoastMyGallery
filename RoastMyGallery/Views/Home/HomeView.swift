@@ -376,9 +376,10 @@ struct HomeView: View {
     }
 
     /// Stats behind the teaser: the newest record that actually scanned the
-    /// library (hand-picked runs carry empty placeholder stats).
+    /// library — the store's shared rule, so Home, Gallery Stats, and Data
+    /// Transparency always agree on which scan is "latest".
     private var teaserSourceStats: PhotoStats? {
-        history.records.first(where: { $0.stats.analyzedPhotos > 0 })?.stats
+        history.latestScanStats
     }
 
     /// Facts come from one scoped scan, not the whole library — say which

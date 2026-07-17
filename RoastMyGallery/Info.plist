@@ -20,11 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Roast My Gallery saves the share cards you create to your photo library when you choose to save them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Roast My Gallery analyzes your photos entirely on this device to find patterns worth roasting. Your photos never leave your phone unless you explicitly choose Deep Analysis.</string>
 	<key>UILaunchScreen</key>

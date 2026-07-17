@@ -81,8 +81,20 @@ struct ScanProgressView: View {
                 // app is backgrounded) picks it up from here.
                 Button("Continue in Background") { scanViewModel.minimizeFlow() }
                     .buttonStyle(SoftButtonStyle())
-                Button("Cancel") { scanViewModel.cancelScan() }
-                    .buttonStyle(QuietButtonStyle())
+                // Cancel is only offered during the on-device scan, which is
+                // free to abandon. Once generation starts the request is
+                // already with the backend — which charges on success whether
+                // or not we're still listening — so cancelling could only
+                // discard a story that's being paid for.
+                if case .scanning = scanViewModel.phase {
+                    Button("Cancel") { scanViewModel.cancelScan() }
+                        .buttonStyle(QuietButtonStyle())
+                } else {
+                    Text("Your story is already being written and can't be cancelled — feel free to keep browsing.")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
         .padding(Theme.Spacing.xl)

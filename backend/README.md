@@ -14,7 +14,6 @@ Vercel serverless functions wrapping the Google Gemini API:
 backend/
 ├── api/insight.js      # POST /api/insight — gates, validation, Gemini call
 ├── api/deep-vision.js  # POST /api/deep-vision — photo batch → vision LLM
-├── api/spend.js        # POST /api/spend — RevenueCat credit deduction
 ├── api/starter-grant.js# POST /api/starter-grant — one-time free credits
 ├── lib/prompts.js      # persona prompts + model IDs — edit here to tune tone
 ├── lib/guard.js        # abuse gates: app secret, per-IP limit, daily cap

@@ -17,7 +17,10 @@ struct GalleryStatsView: View {
             Theme.Colors.background.ignoresSafeArea()
 
             ScrollView {
-                if let stats = history.latest?.stats {
+                // Latest record that actually scanned the library — a
+                // standalone hand-picked run's placeholder stats would show
+                // an all-zero dashboard here (see latestScanStats).
+                if let stats = history.latestScanStats {
                     statsContent(stats)
                 } else {
                     emptyState
@@ -239,7 +242,7 @@ struct GalleryStatsView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             sectionHeader(icon: "person.2.fill", title: "Faces in Photos")
 
-            let order = ["0 faces", "1 face", "2+ faces"]
+            let order = ["0", "1", "2+"]
             let ordered = buckets
                 .sorted { lhs, rhs in
                     (order.firstIndex(of: lhs.key) ?? .max) < (order.firstIndex(of: rhs.key) ?? .max)

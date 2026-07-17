@@ -21,5 +21,5 @@ enum AppConfig {
     /// not a determined attacker. Rotate by changing both this value and the
     /// Vercel env var. If the app ever gets real traction, replace with
     /// App Attest.
-    static let appSharedSecret = "24364b23f26ecf80c450e978d2f3c7b91f94cacae45951a7"
+    static let appSharedSecret = "17ad313147db12c78c1c2191622e96bb6be43919ae3662b143ca65f109e9f8d9"
 }

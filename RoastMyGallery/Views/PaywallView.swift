@@ -7,22 +7,22 @@ import RevenueCat
 struct PaywallView: View {
     /// Why the paywall was opened — drives the header message and whether it
     /// auto-dismisses once the user can afford the action they wanted.
+    /// `analysis` carries the actual cost of the run that was blocked (1 gem
+    /// standard, 5 deep), so the message and the auto-dismiss threshold always
+    /// match what the user came to pay for.
     enum Context: Equatable {
         case general
-        case analysis(have: Int)
+        case analysis(cost: Int, have: Int)
         case deepVision(have: Int)
-        case lockedMode(name: String)
 
         var message: String? {
             switch self {
             case .general:
                 return nil
-            case .analysis(let have):
-                return "You need \(PurchaseManager.analysisCost) gem for this analysis — you have \(have)."
+            case .analysis(let cost, let have):
+                return "You need \(cost) \(cost == 1 ? "gem" : "gems") for this analysis — you have \(have)."
             case .deepVision(let have):
                 return "You need \(PurchaseManager.deepVisionCost) gems for a Deep Vision batch — you have \(have)."
-            case .lockedMode(let name):
-                return "Unlock \(name) — and every analysis mode — with your first gem purchase."
             }
         }
     }
@@ -35,6 +35,11 @@ struct PaywallView: View {
     @State private var showSuccess = false
     @State private var successGems = 0
     @State private var successBalance = 0
+
+    /// Populated after a restore attempt to drive the result alert — the same
+    /// pattern SettingsView uses, so restoring is never a silent no-op.
+    @State private var restoreMessage: String?
+    @State private var isRestoring = false
 
     private var packages: [Package] {
         purchaseManager.offerings?.current?.availablePackages ?? []
@@ -57,7 +62,7 @@ struct PaywallView: View {
                             // Offering loads from RevenueCat. Until the dashboard
                             // products + Offering exist (and the public key is
                             // set), this stays empty — see CONFIG in PurchaseManager.
-                            Text("Products unavailable. Check the RevenueCat Offering and API key.")
+                            Text("Couldn't load the gem packs. Check your connection and try again in a moment.")
                                 .font(Theme.Typography.caption)
                                 .foregroundStyle(Theme.Colors.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -69,10 +74,20 @@ struct PaywallView: View {
                             }
                         }
 
-                        Button("Restore Purchases") {
-                            Task { await purchaseManager.restorePurchases() }
+                        Button {
+                            Task {
+                                isRestoring = true
+                                defer { isRestoring = false }
+                                restoreMessage = await purchaseManager.restorePurchases().userMessage
+                            }
+                        } label: {
+                            HStack(spacing: Theme.Spacing.s) {
+                                if isRestoring { ProgressView() }
+                                Text(isRestoring ? "Restoring…" : "Restore Purchases")
+                            }
                         }
                         .buttonStyle(QuietButtonStyle())
+                        .disabled(isRestoring)
 
                         if let error = purchaseManager.lastError {
                             Text(error)
@@ -80,6 +95,10 @@ struct PaywallView: View {
                                 .foregroundStyle(Theme.Colors.danger)
                                 .multilineTextAlignment(.center)
                         }
+
+                        #if DEBUG
+                        debugTools
+                        #endif
                     }
                     .padding(Theme.Spacing.l)
                 }
@@ -91,6 +110,17 @@ struct PaywallView: View {
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
+            }
+            .alert(
+                "Restore Purchases",
+                isPresented: Binding(
+                    get: { restoreMessage != nil },
+                    set: { if !$0 { restoreMessage = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(restoreMessage ?? "")
             }
             .onChange(of: purchaseManager.lastPurchaseResult?.newBalance) { _, _ in
                 // Show the celebration screen when a purchase succeeds.
@@ -108,15 +138,18 @@ struct PaywallView: View {
                 newBalance: successBalance,
                 onDismiss: {
                     showSuccess = false
-                    // For context-specific flows, dismiss paywall too.
+                    // For context-specific flows, dismiss the paywall too —
+                    // but only once the user can afford the action they
+                    // actually came for (its real cost, not just 1 gem).
                     switch context {
-                    case .analysis where purchaseManager.canAfford(PurchaseManager.analysisCost),
-                         .deepVision where purchaseManager.canAfford(PurchaseManager.deepVisionCost):
+                    case .analysis(let cost, _) where purchaseManager.canAfford(cost):
+                        dismiss()
+                    case .deepVision where purchaseManager.canAfford(PurchaseManager.deepVisionCost):
                         dismiss()
                     case .general:
                         break       // stay on paywall so user can buy more
                     default:
-                        break
+                        break       // still short — stay so they can top up
                     }
                 }
             )
@@ -225,4 +258,42 @@ struct PaywallView: View {
         let base = "\(analyses) analyses, or \(batches) deep-vision \(batches == 1 ? "batch" : "batches")"
         return isSub ? "Each month: \(base)" : base
     }
+
+    // MARK: - DEBUG-only dev tools
+
+    #if DEBUG
+    /// Dev-only panel, compiled out of Release builds entirely. Simulates the
+    /// Ask to Buy pending outcome through the REAL PurchaseManager handler
+    /// (see `debugSimulatePaymentPending`) so the message above renders
+    /// exactly as a real deferred purchase would show it — Apple offers no
+    /// sandbox switch to trigger one on demand.
+    ///
+    /// STRIP BEFORE SHIPPING: remove this section and
+    /// `PurchaseManager.debugSimulatePaymentPending()` — or at minimum
+    /// re-confirm both are still `#if DEBUG`-gated — before the final
+    /// App Store archive.
+    private var debugTools: some View {
+        VStack(spacing: Theme.Spacing.s) {
+            Text("DEBUG BUILD ONLY")
+                .font(Theme.Typography.label)
+                .tracking(1.5)
+                .foregroundStyle(Theme.Colors.danger)
+            Button("Simulate Ask to Buy (pending purchase)") {
+                purchaseManager.debugSimulatePaymentPending()
+            }
+            .font(Theme.Typography.caption)
+            .foregroundStyle(Theme.Colors.danger)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Theme.Spacing.m)
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.button)
+                .stroke(
+                    Theme.Colors.danger.opacity(0.5),
+                    style: StrokeStyle(lineWidth: 1, dash: [5, 4])
+                )
+        )
+        .padding(.top, Theme.Spacing.m)
+    }
+    #endif
 }

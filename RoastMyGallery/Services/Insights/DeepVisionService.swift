@@ -141,10 +141,15 @@ enum DeepVisionError: LocalizedError, Equatable {
             return "The analysis service is busy right now. Try again in a minute — no gems were taken."
         case .batchTooLarge:
             return "That batch is too large to upload. Try picking fewer photos."
+        // These two can fire AFTER the server already finished (a response
+        // lost in transit) — in that rare case the gems were taken, and the
+        // retry redeems them: the same run is never charged twice (see
+        // backend/lib/idempotency.js). So promise exactly that, not "nothing
+        // was taken".
         case .network:
-            return "Couldn't reach the analysis service. Check your connection and try again — no gems were taken."
+            return "Couldn't reach the analysis service. Check your connection and try again — you'll never be charged twice for the same batch."
         case .serviceUnavailable:
-            return "The analysis service had a hiccup. Try again in a bit — no gems were taken."
+            return "The analysis service had a hiccup. Try again in a bit — you'll never be charged twice for the same batch."
         case .preparationFailed:
             return "Those photos couldn't be prepared for upload. Try picking different ones."
         }

@@ -115,21 +115,6 @@ final class ScanViewModel {
         environment.photoLibrary.currentAuthorizationStatus() == .limited
     }
 
-    /// TEMP DIAGNOSTIC — human-readable current photo authorization, surfaced
-    /// on the album picker's empty state so we can confirm full-vs-limited
-    /// access on-device without the console. Remove once the album picker bug
-    /// is understood.
-    var photoAccessDebugDescription: String {
-        switch environment.photoLibrary.currentAuthorizationStatus() {
-        case .authorized: return "authorized (full)"
-        case .limited: return "limited"
-        case .denied: return "denied"
-        case .restricted: return "restricted"
-        case .notDetermined: return "notDetermined"
-        @unknown default: return "unknown"
-        }
-    }
-
     // MARK: - Presentation
 
     func presentFlow() { isFlowPresented = true }
@@ -479,6 +464,13 @@ final class ScanViewModel {
         // A deep record regenerates deep (long story, 5 gems — the backend
         // charges by the depth it writes at); standard regenerates for 1.
         let depth = record.depth ?? .standard
+
+        // The progress screen reads selectedDepth/selectedPersona for its
+        // copy ("Writing your long story", "In your roast voice…"). A
+        // regenerate can start from Home/History with stale values left by
+        // an earlier flow, so sync them to the record being regenerated.
+        selectedDepth = depth
+        selectedPersona = record.persona
 
         // Seed = how many insights already exist for this exact scope+persona,
         // so the first Regenerate is 1, the next 2, … and lenses rotate.

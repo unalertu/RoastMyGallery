@@ -15,8 +15,10 @@ struct DateRangePickerSheet: View {
     private static let calendar = Calendar.current
     private static let monthSymbols = DateFormatter().standaloneMonthSymbols ?? []
     private static let years: [Int] = {
+        // 30 years covers imported/scanned photo libraries, not just the
+        // iPhone era — older libraries were unreachable at the previous 8.
         let current = calendar.component(.year, from: .now)
-        return Array((current - 8)...current)
+        return Array((current - 30)...current)
     }()
     private static let maxMonths = 12
 

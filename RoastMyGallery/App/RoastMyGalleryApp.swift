@@ -3,7 +3,7 @@ import UserNotifications
 
 @main
 struct RoastMyGalleryApp: App {
-    @State private var purchaseManager = PurchaseManager()
+    @State private var purchaseManager: PurchaseManager
     @State private var historyStore: AnalysisHistoryStore
     @State private var scanViewModel: ScanViewModel
     @State private var deepVisionRunner: DeepVisionRunner

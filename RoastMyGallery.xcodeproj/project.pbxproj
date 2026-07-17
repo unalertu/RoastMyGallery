@@ -64,6 +64,7 @@
 		EF7A25CCD9255CF5663F52BC /* GalleryStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B63AFA32818A4046E6462F /* GalleryStatsView.swift */; };
 		F036C3744BBD9C650D925ED7 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83F522555EE27A570E35C90 /* HomeView.swift */; };
 		F37E2AFE8CF5C12FC23E2658 /* DeepVisionRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6839D7462EBC285143C52ABB /* DeepVisionRunner.swift */; };
+		F5EE3B4A23B8B6D75C4F5226 /* KeychainAppUserID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B98FCAC8578BC7482C18F0 /* KeychainAppUserID.swift */; };
 		F891EF8F3FDB84934374C91C /* AnalysisScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FD2FE87B738BB4783C0132 /* AnalysisScope.swift */; };
 		FF58A64373D98B9E8DEF8329 /* Persona.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C44CC07D629C0F3E6AB53B /* Persona.swift */; };
 /* End PBXBuildFile section */
@@ -82,6 +83,7 @@
 		3F7C6F25B10E1EF3610DF7A2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		3FD104398720975570F40CE4 /* CategoryVocabulary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryVocabulary.swift; sourceTree = "<group>"; };
 		40CD7AC7BE197D85E5A13174 /* ShareCardDebug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardDebug.swift; sourceTree = "<group>"; };
+		41B98FCAC8578BC7482C18F0 /* KeychainAppUserID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAppUserID.swift; sourceTree = "<group>"; };
 		475EB13493F77AD19EBAB096 /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		488ECB643B7E303D3BD26771 /* AltShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AltShareCardView.swift; sourceTree = "<group>"; };
 		494FBA1DB7DA531D0AA91B80 /* AnalysisHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryStore.swift; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 			isa = PBXGroup;
 			children = (
 				F4AF857427290BFC9BA44ECB /* GemBackendClient.swift */,
+				41B98FCAC8578BC7482C18F0 /* KeychainAppUserID.swift */,
 				119970B71BED79F8605050D5 /* PurchaseManager.swift */,
 			);
 			path = Purchases;
@@ -384,6 +387,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 790A261B5ED1634457A55BA2 /* Build configuration list for PBXNativeTarget "RoastMyGallery" */;
 			buildPhases = (
+				3B0BFB1002423935E7829428 /* Ship Guard — no STRIP BEFORE SHIPPING in Release */,
 				E2B484B3E65B564673482592 /* Sources */,
 				BC424D4FD2C590750A74F1F5 /* Resources */,
 				1FC0F040653922B8EC5F7282 /* Frameworks */,
@@ -442,6 +446,28 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		3B0BFB1002423935E7829428 /* Ship Guard — no STRIP BEFORE SHIPPING in Release */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Ship Guard — no STRIP BEFORE SHIPPING in Release";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "if [ \"${CONFIGURATION}\" != \"Release\" ]; then\n  echo \"Ship-guard: skipped (${CONFIGURATION:-manual} build).\"\n  exit 0\nfi\nMARKER=\"STRIP BEFORE SHIPPING\"\n# Scoped to the app source tree only — never .git, backend,\n# DerivedData, or generated/worktree directories.\nMATCHES=$(grep -rn --include=\"*.swift\" \"${MARKER}\" \"${SRCROOT}/RoastMyGallery\" || true)\nif [ -z \"${MATCHES}\" ]; then\n  echo \"Ship-guard: no '${MARKER}' markers found — OK to ship.\"\n  exit 0\nfi\necho \"error: DEBUG-only code marked '${MARKER}' is still present in a Release build:\"\necho \"${MATCHES}\" | while IFS= read -r line; do\n  file=\"${line%%:*}\"\n  rest=\"${line#*:}\"\n  lineno=\"${rest%%:*}\"\n  # path:line: error: … renders as a clickable red error in Xcode.\n  echo \"${file}:${lineno}: error: remove this '${MARKER}' code before shipping\"\ndone\nexit 1\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		E2B484B3E65B564673482592 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -479,6 +505,7 @@
 				9BF960BC63FC986B2463BE60 /* Insight.swift in Sources */,
 				798FFD683CD5BD6135BB4A4B /* InsightSegmentCard.swift in Sources */,
 				EB4E741DBC923200E8CA383B /* InsightView.swift in Sources */,
+				F5EE3B4A23B8B6D75C4F5226 /* KeychainAppUserID.swift in Sources */,
 				5C7E61CDC63A426F0AC90986 /* OnDeviceAnalyzer.swift in Sources */,
 				5B0867F0F89AADB255575AA2 /* PaywallView.swift in Sources */,
 				E1303E691547926E55A19BBE /* PermissionView.swift in Sources */,

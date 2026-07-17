@@ -34,15 +34,6 @@ struct InsightView: View {
 
                     narrative
 
-                    if record.insight.isPreview == true {
-                        Label(
-                            "Preview insight — written on your device while the AI writer takes a breather.",
-                            systemImage: "wand.and.stars.inverse"
-                        )
-                        .font(Theme.Typography.caption)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-
                     superlativeGrid
 
                     VStack(spacing: Theme.Spacing.m) {
@@ -226,7 +217,7 @@ struct InsightView: View {
         // Client-side affordability check is UX only; the backend is the
         // authoritative gate (deduct-after-success), same as a normal analysis.
         guard purchaseManager.canAfford(cost) else {
-            paywallContext = .analysis(have: purchaseManager.gemBalance)
+            paywallContext = .analysis(cost: cost, have: purchaseManager.gemBalance)
             showPaywall = true
             return
         }

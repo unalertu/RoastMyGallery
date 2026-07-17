@@ -11,10 +11,11 @@ import Observation
 ///   the authoritative balance: purchases (consumable packs, subscription
 ///   renewals) *grant* gems automatically via dashboard product
 ///   associations. This client only ever *reads* the balance.
-/// - Spending is NOT possible from the SDK by design. A spend is a negative
-///   adjustment issued by our Vercel backend (which holds the RevenueCat
-///   secret key) — see `backend/api/spend.js` and the server-side deduct folded
-///   into `backend/api/insight.js`. After a spend we re-read the balance.
+/// - Spending is NOT possible from the SDK by design. Every deduction is a
+///   negative adjustment issued server-side by our Vercel backend (which
+///   holds the RevenueCat secret key), folded into the paid endpoints
+///   themselves — `backend/api/insight.js` and `backend/api/deep-vision.js`.
+///   After a spend we re-read the balance.
 ///
 /// ─────────────────────────────────────────────────────────────────────────
 /// CONFIG — replace these placeholders once the RevenueCat dashboard is set up:
@@ -31,7 +32,7 @@ final class PurchaseManager {
 
     /// RevenueCat public SDK key. Safe to ship in the binary (it can only read
     /// and make purchases, never adjust balances). Replace with the real key.
-    static let publicAPIKey = "test_yaBAvZoAxrXPEqVNSzedLwOlNfN"
+    static let publicAPIKey = "appl_LXxsWuCHpLypyIrEPTMOAnIIAVF"
 
     /// Virtual Currency code configured in RevenueCat (Product Catalog →
     /// Virtual Currencies). Must match exactly.
@@ -92,12 +93,6 @@ final class PurchaseManager {
     /// "Subscriber" badge only — it grants no features beyond the gems it
     /// tops up. Independent from the balance.
     private(set) var isSubscribed = false
-    /// Whether this customer has ever completed a real purchase (any gem
-    /// pack or the subscription) — as opposed to just having a balance from
-    /// the free starter grant. Once true, stays true even if the balance
-    /// later drops to 0; it gates access to locked analysis modes, not
-    /// individual analyses (that's `gemBalance`).
-    private(set) var hasUnlockedModes = false
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInFlight = false
     var lastError: String?
@@ -109,8 +104,10 @@ final class PurchaseManager {
     }
     var lastPurchaseResult: PurchaseResult?
 
-    /// Stable RevenueCat App User ID for this install. Anonymous by default;
-    /// the backend uses it to target the right customer for spends/grants.
+    /// Stable RevenueCat App User ID for this install — a Keychain-persisted ID
+    /// (see `KeychainAppUserID`) that survives app deletion on the same device,
+    /// so the gem balance is preserved across a reinstall. The backend uses it
+    /// to target the right customer for spends/grants.
     var appUserID: String { Purchases.isConfigured ? Purchases.shared.appUserID : "unconfigured" }
 
     private var customerInfoTask: Task<Void, Never>?
@@ -118,6 +115,15 @@ final class PurchaseManager {
     // MARK: - Configuration
 
     /// Call once, before any `Purchases.shared` use (see RoastMyGalleryApp).
+    ///
+    /// Configures with a **stable, Keychain-persisted App User ID** (see
+    /// `KeychainAppUserID`) instead of RevenueCat's default anonymous ID. The
+    /// anonymous ID lives in UserDefaults and is wiped when the app is deleted,
+    /// so an anonymous user loses their (paid) gem balance on reinstall. A
+    /// Keychain-backed ID survives app deletion on the same device, so a delete
+    /// + reinstall resolves the same RevenueCat customer and the balance is
+    /// preserved. (Cross-device / new-phone continuity still needs a real
+    /// login — see `restorePurchases`.)
     static func configure() {
         guard !Purchases.isConfigured else { return }
         #if DEBUG
@@ -125,7 +131,7 @@ final class PurchaseManager {
         #else
         Purchases.logLevel = .warn
         #endif
-        Purchases.configure(withAPIKey: publicAPIKey)
+        Purchases.configure(withAPIKey: publicAPIKey, appUserID: KeychainAppUserID.getOrCreate())
     }
 
     init() {
@@ -179,9 +185,6 @@ final class PurchaseManager {
     private func updateSubscription(from info: CustomerInfo) {
         isSubscribed = !info.entitlements.active.isEmpty
             || info.activeSubscriptions.contains(ProductID.monthly.rawValue)
-        // The backend-issued starter grant never appears in StoreKit
-        // transaction history, so this only flips true on a real purchase.
-        hasUnlockedModes = isSubscribed || !info.nonSubscriptionTransactions.isEmpty
     }
 
     // MARK: - Balance (Virtual Currency)
@@ -248,22 +251,65 @@ final class PurchaseManager {
                 gemsAdded: displayGems,
                 newBalance: gemBalance
             )
+        } catch ErrorCode.paymentPendingError {
+            registerPendingPurchase()
         } catch {
             lastError = "Purchase failed: \(error.localizedDescription)"
         }
     }
 
+    /// Ask to Buy / deferred transactions: not a failure. The CustomerInfo
+    /// stream applies the gems automatically once a parent approves — nothing
+    /// to do here but say so. One function on purpose, so the real catch in
+    /// `purchase(_:)` and the DEBUG simulator below can never drift apart.
+    private func registerPendingPurchase() {
+        lastError = "This purchase is waiting for approval. Your gems will be added automatically once it's approved."
+    }
+
+    #if DEBUG
+    /// DEBUG-ONLY (compiled out of Release by this `#if DEBUG`): drives the
+    /// exact pending-purchase handling a real Ask to Buy hits — same handler
+    /// the `paymentPendingError` catch calls, same message, same `lastError`
+    /// surface on the paywall. Exists because Apple provides no sandbox
+    /// switch to trigger a real deferred transaction on demand.
+    ///
+    /// STRIP BEFORE SHIPPING: remove this and the paywall's `debugTools`
+    /// section (PaywallView.swift) — or at minimum re-confirm both are still
+    /// `#if DEBUG`-gated — before the final App Store archive.
+    func debugSimulatePaymentPending() {
+        // Mirror the state `purchase(_:)` resets before its catch runs.
+        lastPurchaseResult = nil
+        registerPendingPurchase()
+    }
+    #endif
+
     enum RestoreResult: Equatable {
         case restoredSubscription
         case noPurchases
         case failed(String)
+
+        /// User-facing outcome message, shared by every restore entry point
+        /// (Settings and the paywall) so restoring is never a silent no-op.
+        var userMessage: String {
+            switch self {
+            case .restoredSubscription:
+                return "Your subscription has been restored. Monthly gems will keep topping up."
+            case .noPurchases:
+                return "No subscription was found on this Apple ID. (Consumable gem packs can't be restored — see support.)"
+            case .failed(let reason):
+                return reason
+            }
+        }
     }
 
     /// Restores the *subscription* entitlement. Consumable gem packs cannot
     /// be restored by design — once granted, the gems live in RevenueCat's
-    /// balance for this App User ID. (Cross-device continuity requires logging
-    /// the user into a stable RevenueCat identity; anonymous IDs can lose a
-    /// consumable balance on reinstall. See known limitations.)
+    /// balance for this App User ID. That ID is Keychain-persisted
+    /// (`KeychainAppUserID`), so the balance already survives a delete +
+    /// reinstall on the SAME device. Cross-device continuity (a new phone)
+    /// still requires logging the user into a stable RevenueCat identity — the
+    /// Keychain ID does not reliably travel between devices. See known
+    /// limitations.
     @discardableResult
     func restorePurchases() async -> RestoreResult {
         guard Purchases.isConfigured else { return .failed("Store unavailable.") }
@@ -281,21 +327,7 @@ final class PurchaseManager {
         }
     }
 
-    // MARK: - Spending & grants (via our backend, which holds the secret key)
-
-    /// Spend gems for an action the *client* orchestrates (e.g. Deep Vision,
-    /// which has no dedicated backend endpoint yet). Analysis spend is folded
-    /// into `POST /api/insight` server-side instead, so it is NOT routed here.
-    ///
-    /// Deduct-after-success: only call this once the paid action has already
-    /// succeeded. Returns true if the backend confirmed the deduction.
-    @discardableResult
-    func spend(_ amount: Int, reason: String) async -> Bool {
-        guard Purchases.isConfigured else { return false }
-        let ok = await GemBackendClient.spend(appUserID: appUserID, amount: amount, reason: reason)
-        if ok { await reconcileAfterSpend() }
-        return ok
-    }
+    // MARK: - Grants (via our backend, which holds the secret key)
 
     /// First-launch starter gems. RevenueCat won't grant non-purchase
     /// gems, so the backend issues a one-time positive adjustment. Guarded

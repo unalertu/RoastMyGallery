@@ -1,30 +1,23 @@
 import Foundation
+import os
 
-/// Thin client for the two gem-mutation endpoints on our Vercel backend.
+/// Thin client for the backend's gem-grant endpoint.
 ///
 /// Why a backend hop at all: RevenueCat Virtual Currency balances can only be
 /// *adjusted* with the RevenueCat **secret** key, which must never ship in the
-/// app. So the app asks the backend to spend/grant; the backend calls
-/// RevenueCat. See `backend/api/spend.js` and `backend/api/starter-grant.js`.
-///
-/// These are best-effort: a failure returns `false` (logged), and the caller
-/// decides what to do. Spends are only issued *after* the paid action already
-/// succeeded, so a failed deduction never blocks the user — it just means a
-/// gem wasn't taken (logged server-side for reconciliation).
+/// app. So the app asks the backend; the backend calls RevenueCat. The paid
+/// actions (analysis, Deep Vision) are deducted server-side inside their own
+/// endpoints — the one-time starter grant is the only client-initiated
+/// adjustment. Best-effort: a failure is logged and returns `false`, and the
+/// caller simply retries on a later launch (see `ensureStarterGrant`).
 enum GemBackendClient {
-    private struct SpendRequest: Encodable {
-        let appUserId: String
-        let amount: Int
-        let reason: String
-    }
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "RoastMyGallery",
+        category: "Gems"
+    )
 
     private struct GrantRequest: Encodable {
         let appUserId: String
-    }
-
-    /// Deduct `amount` gems for `reason` (e.g. "deep_vision").
-    static func spend(appUserID: String, amount: Int, reason: String) async -> Bool {
-        await post(path: "api/spend", body: SpendRequest(appUserId: appUserID, amount: amount, reason: reason))
     }
 
     /// Grant one-time starter gems to a newly seen App User ID.
@@ -43,11 +36,13 @@ enum GemBackendClient {
             request.httpBody = try JSONEncoder().encode(body)
             let (_, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                logger.warning("Gem request \(path, privacy: .public) rejected with status \(status)")
                 return false
             }
             return true
         } catch {
-            // TODO: route through a proper logger.
+            logger.warning("Gem request \(path, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
