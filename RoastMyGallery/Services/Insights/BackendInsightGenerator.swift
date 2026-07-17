@@ -30,6 +30,10 @@ struct BackendInsightGenerator: InsightGenerating {
         /// (Swift's synthesized encoder skips nil optionals, and the backend
         /// treats a missing `depth` as "standard".)
         let depth: String?
+        /// Charge-idempotency token: stable across retries of the same run,
+        /// so the backend deducts at most once per (user, runId) even when a
+        /// response is lost mid-flight. See backend/lib/idempotency.js.
+        let runId: String
         /// Bump when the stats schema changes so the backend can branch.
         let schemaVersion = 1
     }
@@ -52,7 +56,8 @@ struct BackendInsightGenerator: InsightGenerating {
         persona: Persona,
         appUserID: String,
         variationSeed: Int,
-        depth: AnalysisDepth
+        depth: AnalysisDepth,
+        runID: UUID
     ) async throws -> Insight {
         var request = URLRequest(url: baseURL.appending(path: "api/insight"))
         request.httpMethod = "POST"
@@ -68,7 +73,8 @@ struct BackendInsightGenerator: InsightGenerating {
                 locale: Locale.current.identifier,
                 appUserId: appUserID,
                 variationSeed: variationSeed,
-                depth: depth == .deep ? depth.rawValue : nil
+                depth: depth == .deep ? depth.rawValue : nil,
+                runId: runID.uuidString
             )
         )
 

@@ -20,6 +20,7 @@
 import { buildDeepVisionPrompt, GEMINI_VISION_MODEL, PERSONA_PROMPTS } from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
 import { spendCredits, getCreditBalance, CREDIT_COSTS } from "../lib/revenuecat.js";
+import { claimCharge, RUN_ID_PATTERN } from "../lib/idempotency.js";
 
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODEL}:generateContent`;
 
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
-  const { appUserId, persona, locale, images } = req.body;
+  const { appUserId, persona, locale, images, runId } = req.body;
 
   // Read-only affordability pre-check (authoritative balance, unlike the
   // client's UX gate). Deduction still happens only after success below.
@@ -162,11 +163,21 @@ export default async function handler(req, res) {
   // the response on a deduction error — we can't un-run the analysis. A
   // failed/skipped deduction is logged for reconciliation (and is a no-op
   // until the RevenueCat env vars exist).
-  const spend = await spendCredits(appUserId, CREDIT_COSTS.deep_vision);
-  if (!spend.ok) {
-    console.error(
-      `Credit deduction failed for ${appUserId} after a successful deep-vision batch (status ${spend.status}).`
-    );
+  //
+  // Idempotency: a retry of a run whose response was lost after we already
+  // charged carries the same runId — the atomic claim ensures that run only
+  // ever deducts once. Only the claim marker (IDs, never content) is stored,
+  // preserving this endpoint's nothing-persisted privacy contract.
+  const claim = runId ? await claimCharge("deep-vision", appUserId, runId) : "unknown";
+  if (claim === "duplicate") {
+    console.warn(`Skipping deduction for ${appUserId}: deep-vision run ${runId} was already charged.`);
+  } else {
+    const spend = await spendCredits(appUserId, CREDIT_COSTS.deep_vision);
+    if (!spend.ok) {
+      console.error(
+        `Credit deduction failed for ${appUserId} after a successful deep-vision batch (status ${spend.status}).`
+      );
+    }
   }
 
   return res.status(200).json({
@@ -223,7 +234,7 @@ function parseDeepVision(rawText, imageCount) {
 // Validation. Strict on purpose: images go straight into a paid Gemini call,
 // so malformed or oversized payloads are rejected before costing anything.
 
-const BODY_FIELDS = new Set(["appUserId", "persona", "locale", "images", "schemaVersion"]);
+const BODY_FIELDS = new Set(["appUserId", "persona", "locale", "images", "schemaVersion", "runId"]);
 
 // Standard base64 (the iOS client uses Data.base64EncodedString()).
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -251,6 +262,12 @@ function validate(body) {
   }
   if (schemaVersion !== undefined && schemaVersion !== 1) {
     return 'Field "schemaVersion" must be 1 when present.';
+  }
+
+  // Optional: client-generated run ID for charge idempotency (absent on
+  // older clients). Tightly bounded — it becomes part of a storage key.
+  if (body.runId !== undefined && !(typeof body.runId === "string" && RUN_ID_PATTERN.test(body.runId))) {
+    return 'Field "runId" must be a short alphanumeric/dash string when present.';
   }
 
   if (!Array.isArray(images) || images.length === 0) {

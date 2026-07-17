@@ -69,7 +69,12 @@ enum CategoryVocabulary {
         // Animals (Vision classification — distinct from VNRecognizeAnimals)
         "cat": "cats", "dog": "dogs", "bird": "birds", "horse": "horses",
         "fish": "fish", "animal": "animals",
-        // People & moments
+        // People & moments. Demographic-sounding raw labels ("adult") read
+        // clinical — or worse — surfaced verbatim, so they collapse onto
+        // "people"; kid-flavored ones join "child" under "family".
+        "adult": "people", "man": "people", "woman": "people",
+        "couple": "people", "group": "people",
+        "boy": "family", "girl": "family", "teenager": "family",
         "wedding": "weddings", "baby": "family", "child": "family",
         "sport": "sports", "sports": "sports", "gym": "the gym",
         "fitness": "the gym", "yoga": "the gym", "dance": "dancing",
@@ -162,6 +167,24 @@ enum CategoryVocabulary {
         return result
     }
 
+    /// Category names that older versions of the app stored verbatim before
+    /// they were curated — most notably the raw "adult" label, which reads
+    /// badly on screen. Applied to persisted records on load (see
+    /// `AnalysisRecord.modernizingCategories()`), so users never see the old
+    /// names again; kept in sync with the demographic entries in `map` above
+    /// so old and new records converge on the same topics.
+    private static let legacyRenames: [String: String] = [
+        "adult": "people", "man": "people", "woman": "people",
+        "couple": "people", "group": "people",
+        "boy": "family", "girl": "family", "teenager": "family",
+    ]
+
+    /// Current display name for a stored category — the stored name itself
+    /// unless it's a known legacy label.
+    static func modernized(_ topic: String) -> String {
+        legacyRenames[topic] ?? topic
+    }
+
     /// Like `topics(for:)` but preserves each topic's Vision confidence, so
     /// callers can rank a category's representative photos by match strength.
     /// When several raw labels collapse to one topic, the first one wins —
@@ -178,5 +201,59 @@ enum CategoryVocabulary {
             result.append((topic, label.confidence))
         }
         return result
+    }
+}
+
+// MARK: - Legacy record migration
+
+extension AnalysisRecord {
+    /// Renames legacy category labels everywhere a persisted record stores
+    /// them — top categories, monthly breakdowns, segment tags, and the photo
+    /// index — merging counts/photos when an old and a new name collide.
+    /// Idempotent; applied by `AnalysisHistoryStore` on every load.
+    func modernizingCategories() -> AnalysisRecord {
+        var record = self
+
+        record.stats.topCategories = Self.modernizedCounts(stats.topCategories)
+        record.stats.categoriesByMonth = stats.categoriesByMonth
+            .mapValues(Self.modernizedCounts)
+
+        if let index = categoryPhotoIndex {
+            var merged: [String: [String]] = [:]
+            for (key, assetIDs) in index {
+                let newKey = CategoryVocabulary.modernized(key)
+                var existing = merged[newKey] ?? []
+                for id in assetIDs where !existing.contains(id) {
+                    existing.append(id)
+                }
+                merged[newKey] = existing
+            }
+            record.categoryPhotoIndex = merged
+        }
+
+        if let segments = insight.segments {
+            record.insight.segments = segments.map { segment in
+                Insight.Segment(
+                    text: segment.text,
+                    category: segment.category.map(CategoryVocabulary.modernized)
+                )
+            }
+        }
+
+        return record
+    }
+
+    /// Rename + merge, preserving the sorted-descending-by-count invariant.
+    private static func modernizedCounts(_ counts: [CategoryCount]) -> [CategoryCount] {
+        var totals: [String: Int] = [:]
+        var order: [String] = []
+        for item in counts {
+            let name = CategoryVocabulary.modernized(item.category)
+            if totals[name] == nil { order.append(name) }
+            totals[name, default: 0] += item.count
+        }
+        return order
+            .map { CategoryCount(category: $0, count: totals[$0] ?? 0) }
+            .sorted { $0.count > $1.count }
     }
 }

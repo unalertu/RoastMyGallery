@@ -9,7 +9,7 @@ import os
 /// INVARIANTS:
 /// - Runs only inside a deep analysis, after the user's explicit consent on
 ///   the deep setup screen (required-to-start; see PersonaPickerView).
-/// - Costs nothing extra: the deep run's 5 credits were already charged by
+/// - Costs nothing extra: the deep run's 5 gems were already charged by
 ///   `/api/insight`; this endpoint deducts 0 (see backend/api/photo-captions.js).
 /// - Best-effort by contract: callers treat any failure as "no captions",
 ///   never as a failed analysis.

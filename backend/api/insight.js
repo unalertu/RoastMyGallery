@@ -18,6 +18,7 @@ import {
 } from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
 import { spendCredits, getCreditBalance, CREDIT_COSTS } from "../lib/revenuecat.js";
+import { claimCharge, RUN_ID_PATTERN } from "../lib/idempotency.js";
 
 const geminiURL = (model) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
   if (validationError) {
     return res.status(400).json({ error: validationError });
   }
-  const { stats, persona, locale, appUserId, variationSeed } = req.body;
+  const { stats, persona, locale, appUserId, variationSeed, runId } = req.body;
   const depth = req.body.depth === "deep" ? "deep" : "standard";
 
   // Deep runs cost 5 CRD: worth a read-only affordability pre-check against
@@ -203,12 +204,24 @@ export default async function handler(req, res) {
   // A failed/skipped deduction is logged for reconciliation (and is a no-op
   // until RevenueCat env vars exist).
   if (appUserId) {
-    const cost = depth === "deep" ? CREDIT_COSTS.deep_analysis : CREDIT_COSTS.analysis;
-    const spend = await spendCredits(appUserId, cost);
-    if (!spend.ok) {
-      console.error(
-        `Credit deduction failed for ${appUserId} after a successful ${depth} insight (status ${spend.status}).`
-      );
+    // Idempotency: a retry of a run whose response was lost after we already
+    // charged (suspended client, dropped connection) carries the same runId —
+    // claim the charge atomically so that run can only ever deduct once. No
+    // runId (older clients) or no store configured = charge as before.
+    let claim = "unknown";
+    if (runId) {
+      claim = await claimCharge("insight", appUserId, runId);
+    }
+    if (claim === "duplicate") {
+      console.warn(`Skipping deduction for ${appUserId}: run ${runId} was already charged.`);
+    } else {
+      const cost = depth === "deep" ? CREDIT_COSTS.deep_analysis : CREDIT_COSTS.analysis;
+      const spend = await spendCredits(appUserId, cost);
+      if (!spend.ok) {
+        console.error(
+          `Credit deduction failed for ${appUserId} after a successful ${depth} insight (status ${spend.status}).`
+        );
+      }
     }
   }
 
@@ -415,6 +428,7 @@ const BODY_FIELDS = new Set([
   "appUserId",
   "variationSeed",
   "depth",
+  "runId",
 ]);
 
 /** Returns an error message for invalid input, or null if valid. */
@@ -442,6 +456,12 @@ function validate(body) {
   // Optional: analysis tier. Absent (older clients) means standard.
   if (body.depth !== undefined && body.depth !== "standard" && body.depth !== "deep") {
     return 'Field "depth" must be "standard" or "deep" when present.';
+  }
+
+  // Optional: client-generated run ID for charge idempotency (absent on
+  // older clients). Tightly bounded — it becomes part of a storage key.
+  if (body.runId !== undefined && !(typeof body.runId === "string" && RUN_ID_PATTERN.test(body.runId))) {
+    return 'Field "runId" must be a short alphanumeric/dash string when present.';
   }
 
   if (!persona || !Object.hasOwn(PERSONA_PROMPTS, persona)) {

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Celebratory overlay shown after a successful credit purchase.
+/// Celebratory overlay shown after a successful gem purchase.
 /// Matches the pastel, rounded DesignSystem aesthetic while adding
 /// confetti particles and a satisfying checkmark reveal.
 struct PurchaseSuccessView: View {
-    let creditsAdded: Int
+    let gemsAdded: Int
     let newBalance: Int
     var onDismiss: () -> Void
 
@@ -15,7 +15,7 @@ struct PurchaseSuccessView: View {
     @State private var showConfetti = false
     @State private var ringScale: CGFloat = 0.3
     @State private var ringOpacity: Double = 0
-    @State private var displayedCredits = 0
+    @State private var displayedGems = 0
     @State private var showButton = false
     @State private var isDismissing = false
 
@@ -94,22 +94,22 @@ struct PurchaseSuccessView: View {
                             .multilineTextAlignment(.center)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
 
-                        // Credit count with counter animation
+                        // Gem count with counter animation
                         VStack(spacing: Theme.Spacing.xs) {
                             HStack(spacing: Theme.Spacing.s) {
-                                Image(systemName: "sparkles")
+                                Image(systemName: "diamond.fill")
                                     .font(.system(size: 20, weight: .medium))
                                     .foregroundStyle(Theme.Colors.accent)
-                                    .symbolEffect(.bounce, value: displayedCredits)
+                                    .symbolEffect(.bounce, value: displayedGems)
 
-                                Text("+\(displayedCredits)")
+                                Text("+\(displayedGems)")
                                     .font(.system(size: 42, weight: .bold, design: .rounded))
                                     .foregroundStyle(Theme.Colors.accent)
                                     .contentTransition(.numericText())
-                                    .animation(.easeOut(duration: 0.6), value: displayedCredits)
+                                    .animation(.easeOut(duration: 0.6), value: displayedGems)
                             }
 
-                            Text("credits added")
+                            Text("gems added")
                                 .font(Theme.Typography.body)
                                 .foregroundStyle(Theme.Colors.textSecondary)
                         }
@@ -117,9 +117,9 @@ struct PurchaseSuccessView: View {
 
                         // New balance pill
                         HStack(spacing: Theme.Spacing.s) {
-                            Image(systemName: "wallet.bifold")
+                            Image(systemName: "diamond.fill")
                                 .font(.system(size: 14, weight: .medium))
-                            Text("Balance: \(newBalance) credits")
+                            Text("Balance: \(newBalance) gems")
                                 .font(Theme.Typography.headline)
                         }
                         .foregroundStyle(Theme.Colors.textPrimary.opacity(0.8))
@@ -174,10 +174,10 @@ struct PurchaseSuccessView: View {
             showContent = true
         }
 
-        // Step 5: Credit counter ticks up (1.8s)
+        // Step 5: Gem counter ticks up (1.8s)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
             withAnimation(.easeOut(duration: 0.8)) {
-                displayedCredits = creditsAdded
+                displayedGems = gemsAdded
             }
         }
 
@@ -304,7 +304,7 @@ private struct ConfettiPiece: View {
 
 #Preview("Purchase Success") {
     PurchaseSuccessView(
-        creditsAdded: 10,
+        gemsAdded: 10,
         newBalance: 13,
         onDismiss: {}
     )

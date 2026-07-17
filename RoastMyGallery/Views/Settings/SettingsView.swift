@@ -2,7 +2,7 @@ import SwiftUI
 import StoreKit
 import UIKit
 
-/// Tab 3 — Plan, Privacy, Preferences, Data, About. Custom pastel sections
+/// Tab 3 — Plan, Preferences, Data, About, Privacy. Custom pastel sections
 /// (not Form) so it matches the design system.
 struct SettingsView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
@@ -33,10 +33,10 @@ struct SettingsView: View {
                 ScrollView {
                     VStack(spacing: Theme.Spacing.l) {
                         planSection
-                        privacySection
                         preferencesSection
                         dataSection
                         aboutSection
+                        privacySection
                     }
                     .padding(Theme.Spacing.l)
                 }
@@ -104,21 +104,25 @@ struct SettingsView: View {
         SettingsSection(title: "Plan") {
             HStack {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Credits")
+                    Text("Gems")
                         .font(Theme.Typography.headline)
                     Text(purchaseManager.isSubscribed
-                         ? "Subscribed — \(PurchaseManager.advertisedCredits(forProductID: PurchaseManager.ProductID.monthly.rawValue) ?? 50) credits top up monthly"
-                         : "\(PurchaseManager.analysisCost) credit per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
+                         ? "Subscribed — \(PurchaseManager.advertisedGems(forProductID: PurchaseManager.ProductID.monthly.rawValue) ?? 50) gems top up monthly"
+                         : "\(PurchaseManager.analysisCost) gem per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
                 Spacer()
-                Text("\(purchaseManager.creditBalance)")
-                    .font(Theme.Typography.title)
-                    .foregroundStyle(Theme.Colors.accent)
-                    .padding(.horizontal, Theme.Spacing.m)
-                    .padding(.vertical, Theme.Spacing.s)
-                    .background(Theme.Colors.accentSoft, in: Capsule())
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: "diamond.fill")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("\(purchaseManager.gemBalance)")
+                        .font(Theme.Typography.title)
+                }
+                .foregroundStyle(Theme.Colors.accent)
+                .padding(.horizontal, Theme.Spacing.m)
+                .padding(.vertical, Theme.Spacing.s)
+                .background(Theme.Colors.accentSoft, in: Capsule())
             }
 
             if purchaseManager.isSubscribed {
@@ -129,7 +133,7 @@ struct SettingsView: View {
             }
 
             Divider().overlay(Theme.Colors.background)
-            Button(purchaseManager.isSubscribed ? "Get more credits" : "Get credits") { showPaywall = true }
+            Button(purchaseManager.isSubscribed ? "Get more gems" : "Get gems") { showPaywall = true }
                 .buttonStyle(SoftButtonStyle())
 
             Divider().overlay(Theme.Colors.background)
@@ -384,9 +388,9 @@ struct SettingsView: View {
     private func message(for result: PurchaseManager.RestoreResult) -> String {
         switch result {
         case .restoredSubscription:
-            return "Your subscription has been restored. Monthly credits will keep topping up."
+            return "Your subscription has been restored. Monthly gems will keep topping up."
         case .noPurchases:
-            return "No subscription was found on this Apple ID. (Consumable credit packs can't be restored — see support.)"
+            return "No subscription was found on this Apple ID. (Consumable gem packs can't be restored — see support.)"
         case .failed(let reason):
             return reason
         }
@@ -412,10 +416,10 @@ private struct SettingsSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-            Text(title.uppercased())
-                .font(Theme.Typography.label)
-                .tracking(1.5)
-                .foregroundStyle(Theme.Colors.textSecondary)
+            // Same section-header language as Home's "New Analysis" /
+            // "Earlier Analysis" — one pattern across tabs.
+            Text(title)
+                .font(Theme.Typography.headline)
                 .padding(.leading, Theme.Spacing.xs)
 
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {

@@ -19,6 +19,7 @@ backend/
 ├── lib/prompts.js      # persona prompts + model IDs — edit here to tune tone
 ├── lib/guard.js        # abuse gates: app secret, per-IP limit, daily cap
 ├── lib/revenuecat.js   # CRD balance read + signed adjustments (secret key)
+├── lib/idempotency.js  # per-runId charge claims (Upstash/KV, fail-open)
 ├── vercel.json         # maxDuration: 60 for the (slow) vision endpoint
 ├── package.json        # zero dependencies (built-in fetch)
 └── .env.example        # GEMINI_API_KEY template
@@ -147,6 +148,18 @@ builds fall back to preview insights).
    `APP_SHARED_SECRET` must equal `appSharedSecret` in
    `RoastMyGallery/App/AppConfig.swift`; until it's set the secret check is
    skipped (fail-open), so ordering is safe.
+
+   **Charge idempotency (recommended):** the paid endpoints deduct credits
+   only once per client `runId`, so a retry of a run whose response was lost
+   mid-flight can't double-charge. The atomic claim needs a Redis-compatible
+   KV store: add an Upstash Redis integration from the Vercel Marketplace
+   (project → Storage → Create Database → Upstash for Redis), which injects
+   `KV_REST_API_URL` + `KV_REST_API_TOKEN` automatically
+   (`UPSTASH_REDIS_REST_URL`/`_TOKEN` also work). Only tiny
+   `charge:{endpoint}:{user}:{runId}` markers are stored (48 h TTL) — never
+   any generated content, so deep-vision's nothing-persisted privacy contract
+   holds. Until the store is configured, deduction behaves exactly as before
+   (fail-open, see `lib/idempotency.js`).
 
 5. **Deploy to production and get the URL:**
 

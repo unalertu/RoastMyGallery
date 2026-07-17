@@ -45,7 +45,7 @@ struct GalleryStatsView: View {
                     icon: "person.crop.circle",
                     value: "\(stats.selfieCount)",
                     label: "Selfies",
-                    detail: "\(Int((stats.selfieRatio * 100).rounded()))% of photos",
+                    detail: selfieShareDetail(stats),
                     color: Theme.Colors.dustyRose
                 )
                 statTile(
@@ -333,6 +333,16 @@ struct GalleryStatsView: View {
         if lowered.contains("tortoise") || lowered.contains("turtle") { return "tortoise.fill" }
         if lowered.contains("lizard") { return "lizard.fill" }
         return "pawprint.fill"
+    }
+
+    /// "x% of analyzed" under the selfie count — but only on a meaningful
+    /// sample. A tiny scan, or a scan of the Selfies album itself, hits 100%,
+    /// which reads as "the whole library is selfies" rather than a fact about
+    /// this one scope.
+    private func selfieShareDetail(_ stats: PhotoStats) -> String? {
+        guard stats.selfieCount > 0, stats.analyzedPhotos >= 20,
+              stats.selfieRatio <= 0.9 else { return nil }
+        return "\(Int((stats.selfieRatio * 100).rounded()))% of analyzed"
     }
 
     private func busiestHourTile(_ hours: [Int]) -> (value: String, detail: String)? {

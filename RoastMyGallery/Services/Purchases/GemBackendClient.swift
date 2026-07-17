@@ -1,6 +1,6 @@
 import Foundation
 
-/// Thin client for the two credit-mutation endpoints on our Vercel backend.
+/// Thin client for the two gem-mutation endpoints on our Vercel backend.
 ///
 /// Why a backend hop at all: RevenueCat Virtual Currency balances can only be
 /// *adjusted* with the RevenueCat **secret** key, which must never ship in the
@@ -10,8 +10,8 @@ import Foundation
 /// These are best-effort: a failure returns `false` (logged), and the caller
 /// decides what to do. Spends are only issued *after* the paid action already
 /// succeeded, so a failed deduction never blocks the user — it just means a
-/// credit wasn't taken (logged server-side for reconciliation).
-enum CreditBackendClient {
+/// gem wasn't taken (logged server-side for reconciliation).
+enum GemBackendClient {
     private struct SpendRequest: Encodable {
         let appUserId: String
         let amount: Int
@@ -22,12 +22,12 @@ enum CreditBackendClient {
         let appUserId: String
     }
 
-    /// Deduct `amount` credits for `reason` (e.g. "deep_vision").
+    /// Deduct `amount` gems for `reason` (e.g. "deep_vision").
     static func spend(appUserID: String, amount: Int, reason: String) async -> Bool {
         await post(path: "api/spend", body: SpendRequest(appUserId: appUserID, amount: amount, reason: reason))
     }
 
-    /// Grant one-time starter credits to a newly seen App User ID.
+    /// Grant one-time starter gems to a newly seen App User ID.
     static func starterGrant(appUserID: String) async -> Bool {
         await post(path: "api/starter-grant", body: GrantRequest(appUserId: appUserID))
     }

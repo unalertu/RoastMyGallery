@@ -61,7 +61,7 @@ struct PersonaPickerView: View {
                 if purchaseManager.canAfford(analysisCost) {
                     scanViewModel.startScan(appUserID: purchaseManager.appUserID)
                 } else {
-                    paywallContext = .analysis(have: purchaseManager.creditBalance)
+                    paywallContext = .analysis(have: purchaseManager.gemBalance)
                     showPaywall = true
                 }
             }
@@ -116,8 +116,8 @@ struct PersonaPickerView: View {
         if isDeep && !isDateRangeSelected { return "Pick a date range to analyze" }
         if isDeep && !scanViewModel.hasDeepConsent { return "Agree to photo captioning to continue" }
         if !isDeep && !(isDateRangeSelected || isAlbumSelected) { return "Pick a month or album to analyze" }
-        let unit = analysisCost == 1 ? "credit" : "credits"
-        return "\(analysisCost) \(unit) • you have \(purchaseManager.creditBalance)"
+        let unit = analysisCost == 1 ? "gem" : "gems"
+        return "\(analysisCost) \(unit) • you have \(purchaseManager.gemBalance)"
     }
 
     // MARK: - Scope

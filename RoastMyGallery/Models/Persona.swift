@@ -3,7 +3,7 @@ import Foundation
 /// The narrative voice used when generating insights.
 ///
 /// Persona choice is a stylistic preference, never a paywall lever — both are
-/// always available. Monetization is per-action credits (see `PurchaseManager`),
+/// always available. Monetization is per-action gems (see `PurchaseManager`),
 /// not persona gating. There is deliberately no default persona: the picker
 /// presents both neutrally and the user must choose.
 enum Persona: String, Codable, CaseIterable, Identifiable, Sendable {

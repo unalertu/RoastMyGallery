@@ -14,6 +14,7 @@ struct InsightView: View {
 
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(ScanViewModel.self) private var scanViewModel
+    @Environment(DeepVisionRunner.self) private var deepVisionRunner
 
     @State private var shareCardSet: ShareCardSet?
     /// True while the Full Story photos load + panels render (the two quick
@@ -21,7 +22,6 @@ struct InsightView: View {
     @State private var isPreparingShareCards = false
     @State private var showPaywall = false
     @State private var paywallContext: PaywallView.Context = .general
-    @State private var showDeepAnalysis = false
     @State private var renderErrorMessage: String?
 
     var body: some View {
@@ -75,9 +75,6 @@ struct InsightView: View {
         .foregroundStyle(Theme.Colors.textPrimary)
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: paywallContext)
-        }
-        .sheet(isPresented: $showDeepAnalysis) {
-            DeepAnalysisConsentView(persona: record.persona, sourceStats: record.stats)
         }
         .sheet(item: $shareCardSet) { set in
             ShareCardPickerSheet(cards: set.cards)
@@ -183,22 +180,25 @@ struct InsightView: View {
 
     @ViewBuilder
     private var deepAnalysisButton: some View {
-        // Gated on credits now, not Pro. The affordability check is UX only;
-        // the actual 5-credit charge is issued by the backend after a
-        // successful Deep Vision run (see DeepAnalysisConsentView).
+        // Gated on gems now, not Pro. The affordability check is UX only;
+        // the actual 5-gem charge is issued by the backend after a
+        // successful Deep Vision run (see DeepVisionRunner).
         if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
             Button {
-                showDeepAnalysis = true
+                // Persona + stats inherited from this analysis; the flow is
+                // presented by RootView's cover (over the whole tab shell),
+                // so the run survives this screen going away.
+                deepVisionRunner.beginFlow(persona: record.persona, sourceStats: record.stats)
             } label: {
-                Label("Hand-Pick Photos to Read · \(PurchaseManager.deepVisionCost) credits", systemImage: "photo.badge.plus")
+                Label("Hand-Pick Photos to Read · \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
             }
             .buttonStyle(SoftButtonStyle())
         } else {
             Button {
-                paywallContext = .deepVision(have: purchaseManager.creditBalance)
+                paywallContext = .deepVision(have: purchaseManager.gemBalance)
                 showPaywall = true
             } label: {
-                Label("Hand-Pick Photos to Read · needs \(PurchaseManager.deepVisionCost) credits", systemImage: "photo.badge.plus")
+                Label("Hand-Pick Photos to Read · needs \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
             }
             .buttonStyle(SoftButtonStyle())
         }
@@ -208,13 +208,13 @@ struct InsightView: View {
     /// advancing variation seed (see `ScanViewModel.regenerate`). Always shown —
     /// the results screen is the natural place to ask for a different read.
     private var regenerateButton: some View {
-        // A deep record regenerates deep (long story, 5 credits); standard, 1.
+        // A deep record regenerates deep (long story, 5 gems); standard, 1.
         let cost = PurchaseManager.cost(for: record.depth ?? .standard)
         return Button {
             regenerate()
         } label: {
             Label(
-                "Get a fresh take · \(cost) \(cost == 1 ? "credit" : "credits")",
+                "Get a fresh take · \(cost) \(cost == 1 ? "gem" : "gems")",
                 systemImage: "arrow.triangle.2.circlepath"
             )
         }
@@ -226,7 +226,7 @@ struct InsightView: View {
         // Client-side affordability check is UX only; the backend is the
         // authoritative gate (deduct-after-success), same as a normal analysis.
         guard purchaseManager.canAfford(cost) else {
-            paywallContext = .analysis(have: purchaseManager.creditBalance)
+            paywallContext = .analysis(have: purchaseManager.gemBalance)
             showPaywall = true
             return
         }
@@ -242,29 +242,13 @@ struct InsightView: View {
     }
 
     private func renderShareCards() {
-        // Share cards are unlimited in the credit model — no gating here.
+        // Share cards are unlimited in the gem model — no gating here.
         guard !isPreparingShareCards else { return }
         isPreparingShareCards = true
         Task { @MainActor in
             defer { isPreparingShareCards = false }
             do {
-                let classic = try ShareCardRenderer()
-                    .renderCard(insight: record.insight, stats: record.stats)
-                let editorial = try AltShareCardRenderer()
-                    .renderCard(insight: record.insight, stats: record.stats)
-
-                // The Full Story set: resolve the same per-segment photos the
-                // narrative cards above show (async — iCloud originals may
-                // need a fetch), then render one 9:16 panel per page.
-                let panels = await FullStoryBuilder.panels(for: record)
-                let storyImages = try await FullStoryRenderer()
-                    .render(record: record, panels: panels)
-
-                shareCardSet = ShareCardSet(cards: [
-                    RenderedShareCard(id: "classic", title: "Classic", image: classic),
-                    RenderedShareCard(id: "editorial", title: "Editorial", image: editorial),
-                    RenderedShareCard(id: "fullstory", title: "Full Story", images: storyImages),
-                ])
+                shareCardSet = try await ShareCardSet.render(for: record)
             } catch {
                 renderErrorMessage = error.localizedDescription
             }

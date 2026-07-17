@@ -1,31 +1,48 @@
 import SwiftUI
 
-/// Floating "mini player" chip shown above the tab bar while an analysis runs
-/// minimized — and, after a minimized run finishes or fails, until the user
-/// acts on it. Tapping reopens the scan flow at whatever the run is doing;
-/// the finished and failed states also offer a small ✕ to dismiss in place.
+/// Floating "mini player" chips shown above the tab bar while an analysis
+/// runs minimized — and, after a minimized run finishes or fails, until the
+/// user acts on it. Covers both long-running flows: the scan pipeline
+/// (`ScanViewModel`) and the hand-picked Deep Vision batch
+/// (`DeepVisionRunner`); when both are live, their chips stack. Tapping a
+/// chip reopens its flow at whatever the run is doing; finished and failed
+/// chips also offer a small ✕ to dismiss in place.
 struct AnalysisStatusBanner: View {
     @Environment(ScanViewModel.self) private var scanViewModel
+    @Environment(DeepVisionRunner.self) private var deepVisionRunner
 
     var body: some View {
-        Group {
-            if !scanViewModel.isFlowPresented, let state {
-                banner(for: state)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+        VStack(spacing: Theme.Spacing.s) {
+            if let state = scanState {
+                chip(
+                    for: state,
+                    open: openScan,
+                    dismissNotice: { scanViewModel.dismissBackgroundNotice() }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            if let state = deepVisionState {
+                chip(
+                    for: state,
+                    open: openDeepVision,
+                    dismissNotice: { deepVisionRunner.dismissBackgroundNotice() }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(Theme.motion, value: state)
+        .animation(Theme.motion, value: [scanState, deepVisionState])
     }
 
     // MARK: - State
 
-    private enum BannerState: Equatable {
+    private enum ChipState: Equatable {
         case running(label: String, fraction: Double?)
-        case ready(headline: String)
-        case failed
+        case ready(title: String, headline: String)
+        case failed(title: String)
     }
 
-    private var state: BannerState? {
+    private var scanState: ChipState? {
+        guard !scanViewModel.isFlowPresented else { return nil }
         switch scanViewModel.phase {
         case .scanning(let progress):
             return .running(
@@ -38,22 +55,67 @@ struct AnalysisStatusBanner: View {
             return .running(label: "Captioning your photos", fraction: nil)
         default:
             if let record = scanViewModel.backgroundCompletion {
-                return .ready(headline: record.insight.headline)
+                return .ready(title: "Your analysis is ready", headline: record.insight.headline)
             }
             if scanViewModel.backgroundFailureMessage != nil {
-                return .failed
+                return .failed(title: "Analysis didn't finish")
             }
             return nil
+        }
+    }
+
+    private var deepVisionState: ChipState? {
+        guard !deepVisionRunner.isFlowPresented else { return nil }
+        switch deepVisionRunner.phase {
+        case .preparing(let done, let total):
+            return .running(
+                label: "Preparing your photos",
+                fraction: total > 0 ? Double(done) / Double(total) : nil
+            )
+        case .analyzing:
+            return .running(label: "Reading your photos", fraction: nil)
+        default:
+            if let record = deepVisionRunner.backgroundCompletion {
+                return .ready(title: "Deep Vision is ready", headline: record.insight.headline)
+            }
+            if deepVisionRunner.backgroundFailureMessage != nil {
+                return .failed(title: "Deep Vision didn't finish")
+            }
+            return nil
+        }
+    }
+
+    private func openScan() {
+        if scanViewModel.backgroundCompletion != nil {
+            scanViewModel.openBackgroundResult()
+        } else if scanViewModel.backgroundFailureMessage != nil {
+            scanViewModel.reopenFailedRun()
+        } else {
+            scanViewModel.presentFlow()
+        }
+    }
+
+    private func openDeepVision() {
+        if deepVisionRunner.backgroundCompletion != nil {
+            deepVisionRunner.openBackgroundResult()
+        } else if deepVisionRunner.backgroundFailureMessage != nil {
+            deepVisionRunner.reopenFailedRun()
+        } else {
+            deepVisionRunner.presentFlow()
         }
     }
 
     // MARK: - Pieces
 
     @ViewBuilder
-    private func banner(for state: BannerState) -> some View {
+    private func chip(
+        for state: ChipState,
+        open: @escaping () -> Void,
+        dismissNotice: @escaping () -> Void
+    ) -> some View {
         switch state {
         case .running(let label, let fraction):
-            chip(action: { scanViewModel.presentFlow() }, dismissable: false) {
+            chipChrome(action: open, dismiss: nil) {
                 if let fraction {
                     MiniProgressRing(fraction: fraction)
                 } else {
@@ -62,20 +124,20 @@ struct AnalysisStatusBanner: View {
                 titles(label, subtitle: "Tap to watch — or keep browsing")
             }
 
-        case .ready(let headline):
-            chip(action: { scanViewModel.openBackgroundResult() }, dismissable: true) {
+        case .ready(let title, let headline):
+            chipChrome(action: open, dismiss: dismissNotice) {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(Theme.Colors.accent)
-                titles("Your analysis is ready", subtitle: headline)
+                titles(title, subtitle: headline)
             }
 
-        case .failed:
-            chip(action: { scanViewModel.reopenFailedRun() }, dismissable: true) {
+        case .failed(let title):
+            chipChrome(action: open, dismiss: dismissNotice) {
                 Image(systemName: "cloud.drizzle")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(Theme.Colors.danger)
-                titles("Analysis didn't finish", subtitle: "Tap to try again")
+                titles(title, subtitle: "Tap to try again")
             }
         }
     }
@@ -83,17 +145,17 @@ struct AnalysisStatusBanner: View {
     /// Shared chip chrome: surface card, one soft shadow. The main area is
     /// one big button; the ✕ (when present) is a SIBLING of that button, not
     /// nested inside it — nested SwiftUI buttons hit-test unreliably.
-    private func chip(
+    private func chipChrome(
         action: @escaping () -> Void,
-        dismissable: Bool,
+        dismiss: (() -> Void)?,
         @ViewBuilder content: () -> some View
     ) -> some View {
         HStack(spacing: Theme.Spacing.s) {
             Button(action: action) {
                 HStack(spacing: Theme.Spacing.m) {
                     content()
-                    Spacer(minLength: dismissable ? 0 : Theme.Spacing.s)
-                    if !dismissable {
+                    Spacer(minLength: dismiss == nil ? Theme.Spacing.s : 0)
+                    if dismiss == nil {
                         Image(systemName: "chevron.up")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(Theme.Colors.textSecondary)
@@ -103,9 +165,15 @@ struct AnalysisStatusBanner: View {
             }
             .buttonStyle(.plain)
 
-            if dismissable {
+            if let dismiss {
                 Spacer(minLength: 0)
-                dismissButton
+                Button(action: dismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .padding(Theme.Spacing.s) // comfortable hit target inside the chip
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity)
@@ -126,18 +194,6 @@ struct AnalysisStatusBanner: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .lineLimit(1)
         }
-    }
-
-    private var dismissButton: some View {
-        Button {
-            scanViewModel.dismissBackgroundNotice()
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .padding(Theme.Spacing.s) // comfortable hit target inside the chip
-        }
-        .buttonStyle(.plain)
     }
 }
 

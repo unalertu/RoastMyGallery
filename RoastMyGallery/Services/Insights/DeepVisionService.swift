@@ -7,9 +7,9 @@ import Foundation
 ///
 /// INVARIANTS:
 /// - Called only when the user can afford it (`PurchaseManager.deepVisionCost`
-///   credits); the 5-credit charge is issued by the backend after success.
+///   gems); the 5-gem charge is issued by the backend after success.
 /// - Called only with photos the user picked in an explicit per-batch consent
-///   flow (`DeepAnalysisConsentView`) — never auto-selected.
+///   flow (`DeepVisionFlowView`) — never auto-selected.
 /// - Asset IDs are used client-side to map results back; only pixel data,
 ///   the persona, and the RevenueCat App User ID are uploaded.
 /// - Photos must already be downscaled (`ImageDownscaler`) — never originals.
@@ -27,6 +27,10 @@ struct BackendDeepVisionService: DeepVisionAnalyzing {
         /// Base64 JPEGs, in batch order — the order the backend's
         /// `photoIndexes` refer back to.
         let images: [String]
+        /// Charge-idempotency token: stable across retries of the same batch,
+        /// so the backend deducts at most once per (user, runId) even when a
+        /// response is lost mid-flight. See backend/lib/idempotency.js.
+        let runId: String
         let schemaVersion = 1
     }
 
@@ -47,7 +51,8 @@ struct BackendDeepVisionService: DeepVisionAnalyzing {
     func analyze(
         photos: [(assetID: String, jpegData: Data)],
         persona: Persona,
-        appUserID: String
+        appUserID: String,
+        runID: UUID
     ) async throws -> DeepVisionResult {
         precondition(photos.count <= maxBatchSize, "Batch exceeds maxBatchSize")
 
@@ -63,7 +68,8 @@ struct BackendDeepVisionService: DeepVisionAnalyzing {
                 appUserId: appUserID,
                 persona: persona,
                 locale: Locale.current.identifier,
-                images: photos.map { $0.jpegData.base64EncodedString() }
+                images: photos.map { $0.jpegData.base64EncodedString() },
+                runId: runID.uuidString
             )
         )
 
@@ -84,7 +90,7 @@ struct BackendDeepVisionService: DeepVisionAnalyzing {
         case 200..<300:
             break
         case 402:
-            throw DeepVisionError.insufficientCredits
+            throw DeepVisionError.insufficientGems
         case 413:
             throw DeepVisionError.batchTooLarge
         case 429:
@@ -116,10 +122,10 @@ struct BackendDeepVisionService: DeepVisionAnalyzing {
 }
 
 /// User-facing failures of a Deep Vision batch. Calm copy; and because the
-/// backend deducts only after success, every one of these means no credits
+/// backend deducts only after success, every one of these means no gems
 /// were spent.
 enum DeepVisionError: LocalizedError, Equatable {
-    case insufficientCredits
+    case insufficientGems
     case rateLimited
     case batchTooLarge
     case network
@@ -129,16 +135,16 @@ enum DeepVisionError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .insufficientCredits:
-            return "Not enough credits for this batch. No credits were taken."
+        case .insufficientGems:
+            return "Not enough gems for this batch. No gems were taken."
         case .rateLimited:
-            return "The analysis service is busy right now. Try again in a minute — no credits were taken."
+            return "The analysis service is busy right now. Try again in a minute — no gems were taken."
         case .batchTooLarge:
             return "That batch is too large to upload. Try picking fewer photos."
         case .network:
-            return "Couldn't reach the analysis service. Check your connection and try again — no credits were taken."
+            return "Couldn't reach the analysis service. Check your connection and try again — no gems were taken."
         case .serviceUnavailable:
-            return "The analysis service had a hiccup. Try again in a bit — no credits were taken."
+            return "The analysis service had a hiccup. Try again in a bit — no gems were taken."
         case .preparationFailed:
             return "Those photos couldn't be prepared for upload. Try picking different ones."
         }
@@ -152,7 +158,8 @@ struct MockDeepVisionService: DeepVisionAnalyzing {
     func analyze(
         photos: [(assetID: String, jpegData: Data)],
         persona: Persona,
-        appUserID: String
+        appUserID: String,
+        runID: UUID
     ) async throws -> DeepVisionResult {
         precondition(photos.count <= maxBatchSize, "Batch exceeds maxBatchSize")
         try await Task.sleep(for: .seconds(2))

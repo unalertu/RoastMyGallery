@@ -3,13 +3,13 @@ import RevenueCat
 import Observation
 
 /// Single source of truth for monetization — now backed by RevenueCat +
-/// Virtual Currencies, not raw StoreKit. Views read the credit balance and
+/// Virtual Currencies, not raw StoreKit. Views read the gem balance and
 /// subscription status from here and never touch the SDK directly.
 ///
 /// Model:
-/// - Credits are a RevenueCat **Virtual Currency** (code `CRD`). RevenueCat is
+/// - Gems are a RevenueCat **Virtual Currency** (code `CRD`). RevenueCat is
 ///   the authoritative balance: purchases (consumable packs, subscription
-///   renewals) *grant* credits automatically via dashboard product
+///   renewals) *grant* gems automatically via dashboard product
 ///   associations. This client only ever *reads* the balance.
 /// - Spending is NOT possible from the SDK by design. A spend is a negative
 ///   adjustment issued by our Vercel backend (which holds the RevenueCat
@@ -19,7 +19,7 @@ import Observation
 /// ─────────────────────────────────────────────────────────────────────────
 /// CONFIG — replace these placeholders once the RevenueCat dashboard is set up:
 ///   • `publicAPIKey`      → your RevenueCat *public* SDK key (safe to embed).
-///   • `creditCurrencyCode`→ must equal the Virtual Currency code you create.
+///   • `gemCurrencyCode`→ must equal the Virtual Currency code you create.
 ///   • Product identifiers in `ProductID` must match App Store Connect + the
 ///     RevenueCat Offering exactly.
 ///   • The backend needs REVENUECAT_SECRET_KEY + REVENUECAT_PROJECT_ID env vars.
@@ -35,7 +35,7 @@ final class PurchaseManager {
 
     /// Virtual Currency code configured in RevenueCat (Product Catalog →
     /// Virtual Currencies). Must match exactly.
-    static let creditCurrencyCode = "CRD"
+    static let gemCurrencyCode = "CRD"
 
     /// Product identifiers — must match App Store Connect and the RevenueCat
     /// Offering. Packs are consumables; `monthly` is the auto-renewable
@@ -48,7 +48,7 @@ final class PurchaseManager {
         case monthly = "credits_monthly_50"
     }
 
-    // MARK: - Credit costs (app-side constants; the real gate is RevenueCat)
+    // MARK: - Gem costs (app-side constants; the real gate is RevenueCat)
     // `nonisolated` so pure constants/helpers can be read from non-main-actor
     // contexts (e.g. PaywallView.Context) without a Swift 6 isolation error.
 
@@ -57,18 +57,18 @@ final class PurchaseManager {
     nonisolated static let deepAnalysisCost = 5
     /// Hand-picked Deep Vision: the user-selected ≤30 photo batch.
     nonisolated static let deepVisionCost = 5
-    nonisolated static let starterCredits = 3
+    nonisolated static let starterGems = 3
 
     /// Cost of one analysis run at the given depth.
     nonisolated static func cost(for depth: AnalysisDepth) -> Int {
         depth == .deep ? deepAnalysisCost : analysisCost
     }
 
-    /// Credits granted per purchase, mirrored client-side purely for paywall
-    /// framing ("10 credits = 10 analyses"). The authoritative grant is the
+    /// Gems granted per purchase, mirrored client-side purely for paywall
+    /// framing ("10 gems = 10 analyses"). The authoritative grant is the
     /// associated-product amount configured in the RevenueCat dashboard — keep
     /// these in sync with it.
-    nonisolated static func advertisedCredits(forProductID id: String) -> Int? {
+    nonisolated static func advertisedGems(forProductID id: String) -> Int? {
         switch ProductID(rawValue: id) {
         case .pack10: return 10
         case .pack50: return 50
@@ -87,16 +87,16 @@ final class PurchaseManager {
     /// Latest RevenueCat Offering set, for the paywall. `nil` until loaded.
     private(set) var offerings: Offerings?
     /// Authoritative CRD balance, mirrored from RevenueCat.
-    private(set) var creditBalance = 0
-    /// Whether the monthly credit subscription is active. Drives the
-    /// "Subscriber" badge only — it grants no features beyond the credits it
+    private(set) var gemBalance = 0
+    /// Whether the monthly gem subscription is active. Drives the
+    /// "Subscriber" badge only — it grants no features beyond the gems it
     /// tops up. Independent from the balance.
     private(set) var isSubscribed = false
-    /// Whether this customer has ever completed a real purchase (any credit
+    /// Whether this customer has ever completed a real purchase (any gem
     /// pack or the subscription) — as opposed to just having a balance from
     /// the free starter grant. Once true, stays true even if the balance
     /// later drops to 0; it gates access to locked analysis modes, not
-    /// individual analyses (that's `creditBalance`).
+    /// individual analyses (that's `gemBalance`).
     private(set) var hasUnlockedModes = false
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInFlight = false
@@ -104,7 +104,7 @@ final class PurchaseManager {
 
     /// Populated after a successful purchase so the UI can show a celebration.
     struct PurchaseResult {
-        let creditsAdded: Int
+        let gemsAdded: Int
         let newBalance: Int
     }
     var lastPurchaseResult: PurchaseResult?
@@ -142,7 +142,7 @@ final class PurchaseManager {
     }
 
     /// One-shot startup: load products, confirm subscription status, read the
-    /// balance, and grant first-launch starter credits if this user is new.
+    /// balance, and grant first-launch starter gems if this user is new.
     func bootstrap() async {
         guard Purchases.isConfigured else { return }
         primeCachedBalance()
@@ -190,7 +190,7 @@ final class PurchaseManager {
     func primeCachedBalance() {
         guard Purchases.isConfigured,
               let cached = Purchases.shared.cachedVirtualCurrencies else { return }
-        creditBalance = cached.all[Self.creditCurrencyCode]?.balance ?? creditBalance
+        gemBalance = cached.all[Self.gemCurrencyCode]?.balance ?? gemBalance
     }
 
     /// Authoritative fetch from RevenueCat. Falls back to the cached value on
@@ -198,7 +198,7 @@ final class PurchaseManager {
     func refreshBalance() async {
         guard Purchases.isConfigured else { return }
         if let server = await fetchServerBalance() {
-            creditBalance = server
+            gemBalance = server
         } else {
             primeCachedBalance()
         }
@@ -210,7 +210,7 @@ final class PurchaseManager {
         guard Purchases.isConfigured else { return nil }
         do {
             let currencies = try await Purchases.shared.virtualCurrencies()
-            return currencies.all[Self.creditCurrencyCode]?.balance ?? 0
+            return currencies.all[Self.gemCurrencyCode]?.balance ?? 0
         } catch {
             return nil
         }
@@ -218,7 +218,7 @@ final class PurchaseManager {
 
     /// UX-only affordability check. The real gate is RevenueCat rejecting an
     /// over-spend server-side; this just lets us route to the paywall early.
-    func canAfford(_ amount: Int) -> Bool { creditBalance >= amount }
+    func canAfford(_ amount: Int) -> Bool { gemBalance >= amount }
 
     // MARK: - Purchasing
 
@@ -232,21 +232,21 @@ final class PurchaseManager {
             let result = try await Purchases.shared.purchase(package: package)
             guard !result.userCancelled else { return }
             updateSubscription(from: result.customerInfo)
-            // RevenueCat applies the credit grant server-side; drop the stale
+            // RevenueCat applies the gem grant server-side; drop the stale
             // cache and re-read.
-            let balanceBefore = creditBalance
+            let balanceBefore = gemBalance
             Purchases.shared.invalidateVirtualCurrenciesCache()
             await refreshBalance()
-            let creditsAdded = creditBalance - balanceBefore
+            let gemsAdded = gemBalance - balanceBefore
             // Fallback: if the delta is zero (race / cache), use the product's
             // advertised amount so the celebration still makes sense.
             let productID = package.storeProduct.productIdentifier
-            let displayCredits = creditsAdded > 0
-                ? creditsAdded
-                : (Self.advertisedCredits(forProductID: productID) ?? creditsAdded)
+            let displayGems = gemsAdded > 0
+                ? gemsAdded
+                : (Self.advertisedGems(forProductID: productID) ?? gemsAdded)
             lastPurchaseResult = PurchaseResult(
-                creditsAdded: displayCredits,
-                newBalance: creditBalance
+                gemsAdded: displayGems,
+                newBalance: gemBalance
             )
         } catch {
             lastError = "Purchase failed: \(error.localizedDescription)"
@@ -259,8 +259,8 @@ final class PurchaseManager {
         case failed(String)
     }
 
-    /// Restores the *subscription* entitlement. Consumable credit packs cannot
-    /// be restored by design — once granted, the credits live in RevenueCat's
+    /// Restores the *subscription* entitlement. Consumable gem packs cannot
+    /// be restored by design — once granted, the gems live in RevenueCat's
     /// balance for this App User ID. (Cross-device continuity requires logging
     /// the user into a stable RevenueCat identity; anonymous IDs can lose a
     /// consumable balance on reinstall. See known limitations.)
@@ -283,7 +283,7 @@ final class PurchaseManager {
 
     // MARK: - Spending & grants (via our backend, which holds the secret key)
 
-    /// Spend credits for an action the *client* orchestrates (e.g. Deep Vision,
+    /// Spend gems for an action the *client* orchestrates (e.g. Deep Vision,
     /// which has no dedicated backend endpoint yet). Analysis spend is folded
     /// into `POST /api/insight` server-side instead, so it is NOT routed here.
     ///
@@ -292,24 +292,24 @@ final class PurchaseManager {
     @discardableResult
     func spend(_ amount: Int, reason: String) async -> Bool {
         guard Purchases.isConfigured else { return false }
-        let ok = await CreditBackendClient.spend(appUserID: appUserID, amount: amount, reason: reason)
+        let ok = await GemBackendClient.spend(appUserID: appUserID, amount: amount, reason: reason)
         if ok { await reconcileAfterSpend() }
         return ok
     }
 
-    /// First-launch starter credits. RevenueCat won't grant non-purchase
-    /// credits, so the backend issues a one-time positive adjustment. Guarded
+    /// First-launch starter gems. RevenueCat won't grant non-purchase
+    /// gems, so the backend issues a one-time positive adjustment. Guarded
     /// locally so we ask at most once per install.
     ///
     /// NOTE (hardening TODO): the definitive dedupe must live server-side —
     /// the backend should check for a prior starter grant on this App User ID
-    /// before adding credits. The local flag only prevents repeat calls from
+    /// before adding gems. The local flag only prevents repeat calls from
     /// this install.
     func ensureStarterGrant() async {
         guard Purchases.isConfigured else { return }
         let key = "didRequestStarterGrant"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
-        let ok = await CreditBackendClient.starterGrant(appUserID: appUserID)
+        let ok = await GemBackendClient.starterGrant(appUserID: appUserID)
         if ok {
             UserDefaults.standard.set(true, forKey: key)
             await reconcileAfterSpend()
@@ -331,18 +331,18 @@ final class PurchaseManager {
     /// adjustment is not always readable by the client the instant it commits
     /// (read-after-write lag), so a naive re-read right after a spend can
     /// return the *pre-spend* balance and bounce the number straight back up —
-    /// making it look like the credit never came off. A spend can only ever
+    /// making it look like the gem never came off. A spend can only ever
     /// lower the balance, so we clamp the reconcile with `min`: a fresh server
     /// read is accepted, but a stale (higher) one can't undo the optimistic
     /// deduction. A later full refresh (customerInfoStream / bootstrap)
     /// corrects any residual drift.
     func reflectSpend(_ amount: Int) async {
-        let optimistic = max(0, creditBalance - amount)
-        creditBalance = optimistic
+        let optimistic = max(0, gemBalance - amount)
+        gemBalance = optimistic
         guard Purchases.isConfigured else { return }
         Purchases.shared.invalidateVirtualCurrenciesCache()
         if let server = await fetchServerBalance() {
-            creditBalance = min(server, optimistic)
+            gemBalance = min(server, optimistic)
         }
     }
 }

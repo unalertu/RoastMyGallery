@@ -65,25 +65,30 @@ protocol StatsAggregating: Sendable {
 
 /// Stage 3 — turn stats into a narrative. The only stage that talks to the
 /// network, and it only ever sends the `PhotoStats` JSON (plus the RevenueCat
-/// App User ID so the backend can deduct 1 credit *after* a successful
+/// App User ID so the backend can deduct 1 gem *after* a successful
 /// generation — never the photos themselves).
 protocol InsightGenerating: Sendable {
     /// - Parameter appUserID: RevenueCat App User ID, passed to the backend so
-    ///   it can deduct the analysis credit on success. Ignored by offline/mock
+    ///   it can deduct the analysis gem on success. Ignored by offline/mock
     ///   generators (which don't charge).
     /// - Parameter variationSeed: advances each time the *same* stats are
     ///   re-generated (0 for a first analysis, 1 for the first Regenerate, …).
     ///   The backend uses it to rotate the narrative "lens" and spotlight
     ///   different topics so a fresh take actually reads differently.
     /// - Parameter depth: `.deep` asks the backend for the long-form contract
-    ///   (12–16 beats, stronger model) and costs 5 credits instead of 1 —
+    ///   (12–16 beats, stronger model) and costs 5 gems instead of 1 —
     ///   both enforced server-side.
+    /// - Parameter runID: charge-idempotency token. The caller keeps it STABLE
+    ///   across retries of the same run (see `ScanViewModel`'s pending run),
+    ///   so a retry after a lost response can never be charged twice —
+    ///   the backend claims the deduction per (user, runID) atomically.
     func generateInsight(
         from stats: PhotoStats,
         persona: Persona,
         appUserID: String,
         variationSeed: Int,
-        depth: AnalysisDepth
+        depth: AnalysisDepth,
+        runID: UUID
     ) async throws -> Insight
 }
 
@@ -138,14 +143,18 @@ protocol DeepVisionAnalyzing: Sendable {
     ///   and is NOT uploaded — only pixel data and the persona leave the
     ///   device).
     /// - Parameter appUserID: RevenueCat App User ID, passed to the backend so
-    ///   it can deduct the 5-credit charge *after* a successful batch. Ignored
+    ///   it can deduct the 5-gem charge *after* a successful batch. Ignored
     ///   by mocks (which don't charge).
+    /// - Parameter runID: charge-idempotency token, stable across retries of
+    ///   the same batch (see `DeepVisionRunner`) so a lost response can never
+    ///   lead to a double deduction.
     /// - Precondition: caller has verified affordability (UX gate) AND
-    ///   recorded explicit per-batch consent (see `DeepAnalysisConsentView`).
+    ///   recorded explicit per-batch consent (see `DeepVisionFlowView`).
     func analyze(
         photos: [(assetID: String, jpegData: Data)],
         persona: Persona,
-        appUserID: String
+        appUserID: String,
+        runID: UUID
     ) async throws -> DeepVisionResult
 }
 

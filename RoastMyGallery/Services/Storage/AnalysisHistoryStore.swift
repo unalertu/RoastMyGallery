@@ -8,8 +8,8 @@ import Observation
 /// payloads, volume is a few KB per record, and this avoids schema/migration
 /// machinery. Swap the load/persist internals if that ever changes.
 ///
-/// ALL records are viewable — in the credit model the user already spent a
-/// credit to generate each one, so history has nothing to gate.
+/// ALL records are viewable — in the gem model the user already spent a
+/// gem to generate each one, so history has nothing to gate.
 @MainActor
 @Observable
 final class AnalysisHistoryStore {
@@ -47,6 +47,9 @@ final class AnalysisHistoryStore {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         do {
             records = try JSONDecoder.backend.decode([AnalysisRecord].self, from: data)
+                // Old records can hold since-renamed category labels ("adult")
+                // that would still surface in stats, teasers, and share cards.
+                .map { $0.modernizingCategories() }
         } catch {
             // Corrupt/incompatible history is not worth crashing over; start
             // fresh. TODO: route through a proper logger.

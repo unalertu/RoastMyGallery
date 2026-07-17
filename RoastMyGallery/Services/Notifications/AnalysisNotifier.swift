@@ -3,18 +3,32 @@ import UIKit
 import UserNotifications
 
 /// Local notifications for analysis runs that finish while the app is in the
-/// background. Follows the same permission policy as `ReminderScheduler`:
-/// authorization is requested lazily — the first time the user minimizes a
-/// running analysis — never at launch. If notifications were denied,
-/// everything here degrades to silence; the in-app status banner still covers
-/// the user when they return.
+/// background — used by both long-running flows (the scan pipeline and the
+/// hand-picked Deep Vision batch). Follows the same permission policy as
+/// `ReminderScheduler`: authorization is requested lazily — the first time
+/// the user minimizes a running analysis — never at launch. If notifications
+/// were denied, everything here degrades to silence; the in-app status banner
+/// still covers the user when they return.
 @MainActor
 enum AnalysisNotifier {
-    /// One stable identifier: a newer completion replaces an unseen older one
-    /// instead of stacking in Notification Center.
-    static let notificationID = "analysis-run-finished"
+    /// Which long-running flow a notification belongs to, so a tap can be
+    /// routed back to the right surface (see `NotificationRouter`).
+    enum Flow: String {
+        case scan
+        case deepVision
+    }
+
+    /// One stable identifier per flow: a newer completion replaces an unseen
+    /// older one of the same flow instead of stacking, while a scan and a
+    /// deep-vision completion can coexist.
+    static func notificationID(for flow: Flow) -> String {
+        "analysis-run-finished-\(flow.rawValue)"
+    }
+
     /// userInfo key carrying the finished record's UUID for tap routing.
     static let recordIDKey = "recordID"
+    /// userInfo key carrying the `Flow` raw value.
+    static let flowKey = "flow"
 
     static func requestAuthorizationIfNeeded() async {
         let center = UNUserNotificationCenter.current()
@@ -24,37 +38,44 @@ enum AnalysisNotifier {
 
     /// Posts "your analysis is ready" — but only when the app is actually in
     /// the background; in the foreground the status banner is the messenger.
-    static func notifyCompletionIfBackgrounded(_ record: AnalysisRecord) {
+    static func notifyCompletionIfBackgrounded(_ record: AnalysisRecord, flow: Flow = .scan) {
         guard UIApplication.shared.applicationState != .active else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Your analysis is ready"
+        content.title = flow == .deepVision ? "Your Deep Vision results are ready" : "Your analysis is ready"
         content.body = record.insight.headline
         content.sound = .default
-        content.userInfo = [recordIDKey: record.id.uuidString]
-        deliver(content)
+        content.userInfo = [recordIDKey: record.id.uuidString, flowKey: flow.rawValue]
+        deliver(content, flow: flow)
     }
 
-    static func notifyFailureIfBackgrounded() {
+    static func notifyFailureIfBackgrounded(flow: Flow = .scan) {
         guard UIApplication.shared.applicationState != .active else { return }
         let content = UNMutableNotificationContent()
-        content.title = "Analysis didn't finish"
+        content.title = flow == .deepVision ? "Deep Vision didn't finish" : "Analysis didn't finish"
         content.body = "Something went wrong along the way. Open the app to try again."
         content.sound = .default
-        deliver(content)
+        content.userInfo = [flowKey: flow.rawValue]
+        deliver(content, flow: flow)
     }
 
-    /// Once the user has seen (or dismissed) the outcome in-app, take the ping
-    /// back out of Notification Center so it can't route them to old news.
-    static func clearDelivered() {
+    /// Once the user has seen (or dismissed) one flow's outcome in-app, take
+    /// that ping back out of Notification Center so it can't route them to
+    /// old news — without touching the other flow's pending notification.
+    static func clearDelivered(for flow: Flow) {
+        let ids = [notificationID(for: flow)]
         let center = UNUserNotificationCenter.current()
-        center.removeDeliveredNotifications(withIdentifiers: [notificationID])
-        center.removePendingNotificationRequests(withIdentifiers: [notificationID])
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
-    private static func deliver(_ content: UNNotificationContent) {
+    private static func deliver(_ content: UNNotificationContent, flow: Flow) {
         // nil trigger = deliver immediately. Without granted permission the
         // add is silently dropped, which is the intended degradation.
-        let request = UNNotificationRequest(identifier: notificationID, content: content, trigger: nil)
+        let request = UNNotificationRequest(
+            identifier: notificationID(for: flow),
+            content: content,
+            trigger: nil
+        )
         Task { try? await UNUserNotificationCenter.current().add(request) }
     }
 }
@@ -62,21 +83,23 @@ enum AnalysisNotifier {
 /// Routes completion-notification taps back into the app. `RoastMyGalleryApp`
 /// registers the singleton as the notification-center delegate at launch (it
 /// must be in place before launch finishes so a tap that cold-starts the app
-/// is still delivered) and points `openAnalysis` at the shared ScanViewModel.
+/// is still delivered) and points `openAnalysis` at the app-scoped models.
 final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationRouter()
 
-    /// Called on the main actor with the tapped record's ID (nil if missing).
-    var openAnalysis: (@MainActor (UUID?) -> Void)?
+    /// Called on the main actor with the tapped record's ID (nil for failure
+    /// notifications, which carry no record) and the flow it belongs to.
+    var openAnalysis: (@MainActor (UUID?, AnalysisNotifier.Flow) -> Void)?
 
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard response.notification.request.identifier == AnalysisNotifier.notificationID else { return }
-        let id = (response.notification.request.content.userInfo[AnalysisNotifier.recordIDKey] as? String)
-            .flatMap(UUID.init)
-        await MainActor.run { openAnalysis?(id) }
+        let userInfo = response.notification.request.content.userInfo
+        guard let flow = (userInfo[AnalysisNotifier.flowKey] as? String)
+            .flatMap(AnalysisNotifier.Flow.init) else { return }
+        let id = (userInfo[AnalysisNotifier.recordIDKey] as? String).flatMap(UUID.init)
+        await MainActor.run { openAnalysis?(id, flow) }
     }
 
     func userNotificationCenter(
@@ -87,6 +110,8 @@ final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate {
         // applicationState guards above), and if one slipped through the
         // in-app banner already covers it — show nothing. Other notifications
         // (the monthly reminder) keep their normal banner.
-        notification.request.identifier == AnalysisNotifier.notificationID ? [] : [.banner, .sound]
+        let isAnalysis = notification.request.content
+            .userInfo[AnalysisNotifier.flowKey] is String
+        return isAnalysis ? [] : [.banner, .sound]
     }
 }

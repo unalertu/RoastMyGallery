@@ -1,9 +1,9 @@
 import SwiftUI
 import RevenueCat
 
-/// Credit store — buy one-time credit packs or subscribe for a monthly top-up.
+/// Gem store — buy one-time gem packs or subscribe for a monthly top-up.
 /// Data comes from the current RevenueCat Offering; the pastel DesignSystem is
-/// unchanged. Framing is matter-of-fact: "what does X credits get me."
+/// unchanged. Framing is matter-of-fact: "what does X gems get me."
 struct PaywallView: View {
     /// Why the paywall was opened — drives the header message and whether it
     /// auto-dismisses once the user can afford the action they wanted.
@@ -18,11 +18,11 @@ struct PaywallView: View {
             case .general:
                 return nil
             case .analysis(let have):
-                return "You need \(PurchaseManager.analysisCost) credit for this analysis — you have \(have)."
+                return "You need \(PurchaseManager.analysisCost) gem for this analysis — you have \(have)."
             case .deepVision(let have):
-                return "You need \(PurchaseManager.deepVisionCost) credits for a Deep Vision batch — you have \(have)."
+                return "You need \(PurchaseManager.deepVisionCost) gems for a Deep Vision batch — you have \(have)."
             case .lockedMode(let name):
-                return "Unlock \(name) — and every analysis mode — with your first credit purchase."
+                return "Unlock \(name) — and every analysis mode — with your first gem purchase."
             }
         }
     }
@@ -33,7 +33,7 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showSuccess = false
-    @State private var successCredits = 0
+    @State private var successGems = 0
     @State private var successBalance = 0
 
     private var packages: [Package] {
@@ -48,7 +48,7 @@ struct PaywallView: View {
                 ScrollView {
                     VStack(spacing: Theme.Spacing.l) {
                         headerBlock
-                        creditExplainer
+                        gemExplainer
 
                         if purchaseManager.isLoadingOfferings {
                             ProgressView()
@@ -95,7 +95,7 @@ struct PaywallView: View {
             .onChange(of: purchaseManager.lastPurchaseResult?.newBalance) { _, _ in
                 // Show the celebration screen when a purchase succeeds.
                 if let result = purchaseManager.lastPurchaseResult {
-                    successCredits = result.creditsAdded
+                    successGems = result.gemsAdded
                     successBalance = result.newBalance
                     showSuccess = true
                     purchaseManager.lastPurchaseResult = nil
@@ -104,7 +104,7 @@ struct PaywallView: View {
         }
         .fullScreenCover(isPresented: $showSuccess) {
             PurchaseSuccessView(
-                creditsAdded: successCredits,
+                gemsAdded: successGems,
                 newBalance: successBalance,
                 onDismiss: {
                     showSuccess = false
@@ -129,7 +129,7 @@ struct PaywallView: View {
 
     private var headerBlock: some View {
         VStack(spacing: Theme.Spacing.s) {
-            Text("Get credits")
+            Text("Get gems")
                 .font(Theme.Typography.display)
                 .multilineTextAlignment(.center)
 
@@ -139,7 +139,7 @@ struct PaywallView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
             } else {
-                Text("Credits power your analyses. You have \(purchaseManager.creditBalance).")
+                Text("Gems power your analyses. You have \(purchaseManager.gemBalance).")
                     .font(Theme.Typography.body)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -148,19 +148,19 @@ struct PaywallView: View {
         .padding(.top, Theme.Spacing.l)
     }
 
-    /// "What does a credit get me" — the framing the paywall is built around.
-    private var creditExplainer: some View {
+    /// "What does a gem get me" — the framing the paywall is built around.
+    private var gemExplainer: some View {
         VStack(spacing: Theme.Spacing.m) {
             explainerRow(
-                icon: "sparkle",
+                icon: "diamond.fill",
                 tint: Theme.Colors.powderBlue,
-                title: "\(PurchaseManager.analysisCost) credit = 1 gallery analysis",
+                title: "\(PurchaseManager.analysisCost) gem = 1 gallery analysis",
                 detail: "Full-history scan plus an AI-written insight."
             )
             explainerRow(
-                icon: "sparkles",
+                icon: "diamond.fill",
                 tint: Theme.Colors.dustyRose,
-                title: "\(PurchaseManager.deepVisionCost) credits = 1 Deep Vision batch",
+                title: "\(PurchaseManager.deepVisionCost) gems = 1 Deep Vision batch",
                 detail: "Photo-by-photo commentary on up to 30 hand-picked photos."
             )
         }
@@ -190,17 +190,17 @@ struct PaywallView: View {
 
     private func packageCard(_ package: Package) -> some View {
         let productID = package.storeProduct.productIdentifier
-        let credits = PurchaseManager.advertisedCredits(forProductID: productID)
+        let gems = PurchaseManager.advertisedGems(forProductID: productID)
         let isSub = PurchaseManager.isSubscription(productID: productID)
 
         return Button {
             Task { await purchaseManager.purchase(package) }
         } label: {
             VStack(spacing: Theme.Spacing.xs) {
-                if let credits {
-                    Text(isSub ? "\(credits) credits / month" : "\(credits) credits")
+                if let gems {
+                    Text(isSub ? "\(gems) gems / month" : "\(gems) gems")
                         .font(Theme.Typography.headline)
-                    Text(creditFraming(credits: credits, isSub: isSub))
+                    Text(gemFraming(gems: gems, isSub: isSub))
                         .font(Theme.Typography.caption)
                         .opacity(0.9)
                 } else {
@@ -218,10 +218,10 @@ struct PaywallView: View {
         .disabled(purchaseManager.purchaseInFlight)
     }
 
-    /// "10 credits = 10 analyses, or 2 deep-vision batches".
-    private func creditFraming(credits: Int, isSub: Bool) -> String {
-        let analyses = credits / PurchaseManager.analysisCost
-        let batches = credits / PurchaseManager.deepVisionCost
+    /// "10 gems = 10 analyses, or 2 deep-vision batches".
+    private func gemFraming(gems: Int, isSub: Bool) -> String {
+        let analyses = gems / PurchaseManager.analysisCost
+        let batches = gems / PurchaseManager.deepVisionCost
         let base = "\(analyses) analyses, or \(batches) deep-vision \(batches == 1 ? "batch" : "batches")"
         return isSub ? "Each month: \(base)" : base
     }

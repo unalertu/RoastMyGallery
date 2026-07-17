@@ -1,7 +1,6 @@
 import Foundation
 import Photos
 import Observation
-import UIKit
 
 /// Drives the modal scan flow: permission → persona pick → scan → aggregate →
 /// LLM insight → results. Owns the pipeline services (via `AppEnvironment`)
@@ -56,7 +55,7 @@ final class ScanViewModel {
     /// requires an explicit scope before scanning (standard: a month or album;
     /// deep: a date range) — the picker's CTA stays disabled until one is set.
     var selectedScope: AnalysisScope = .fullHistory
-    /// Chosen on the "New Analysis" options sheet, before the flow presents.
+    /// Chosen on Home's "New Analysis" product cards, before the flow presents.
     var selectedDepth: AnalysisDepth = .standard
     /// Deep analysis uploads the displayed photos for captioning, so it
     /// requires this explicit opt-in every run (see PersonaPickerView's
@@ -79,7 +78,7 @@ final class ScanViewModel {
 
     /// Called when the scan flow is presented: clears any previous run so the
     /// flow always starts at permission/persona choice.
-    /// - Parameter depth: chosen on the "New Analysis" options sheet. Deep
+    /// - Parameter depth: chosen on Home's "New Analysis" product cards. Deep
     ///   starts scope-less (the user must pick a date range) and with consent
     ///   reset — it's an explicit opt-in every run.
     func prepareForNewScan(depth: AnalysisDepth = .standard) {
@@ -163,7 +162,7 @@ final class ScanViewModel {
     func dismissBackgroundNotice() {
         backgroundCompletion = nil
         backgroundFailureMessage = nil
-        AnalysisNotifier.clearDelivered()
+        AnalysisNotifier.clearDelivered(for: .scan)
     }
 
     /// Entry point for completion-notification taps. Safe on cold launch,
@@ -173,7 +172,7 @@ final class ScanViewModel {
     func openResult(withID id: UUID?) {
         backgroundCompletion = nil
         backgroundFailureMessage = nil
-        AnalysisNotifier.clearDelivered()
+        AnalysisNotifier.clearDelivered(for: .scan)
         // A newer run is in flight — show it rather than clobbering its phase.
         if isRunActive {
             isFlowPresented = true
@@ -220,10 +219,67 @@ final class ScanViewModel {
         }
     }
 
+    // MARK: - Charge idempotency
+
+    /// One analysis "intent": the parameters that identify a run for charge
+    /// purposes, plus the run ID the backend dedupes deductions on. Persisted
+    /// (UserDefaults) so a retry after the app was suspended or killed still
+    /// reuses the same ID — that persistence is what closes the last
+    /// double-charge window: a response lost after the server-side deduction
+    /// is retried under the same ID, and the backend refuses to charge it
+    /// again (see backend/lib/idempotency.js).
+    private struct PendingRun: Codable {
+        let id: UUID
+        let scope: AnalysisScope
+        let persona: Persona
+        let depth: AnalysisDepth
+        let variationSeed: Int
+
+        /// Same intent = same everything except the ID itself.
+        func matches(_ other: PendingRun) -> Bool {
+            scope == other.scope && persona == other.persona
+                && depth == other.depth && variationSeed == other.variationSeed
+        }
+    }
+
+    private static let pendingRunDefaultsKey = "pendingInsightRun"
+
+    /// Returns the charge-idempotency ID for this exact intent: the stored
+    /// one when retrying the same run, a fresh UUID (persisted) otherwise.
+    private func runID(
+        scope: AnalysisScope,
+        persona: Persona,
+        depth: AnalysisDepth,
+        variationSeed: Int
+    ) -> UUID {
+        let intent = PendingRun(
+            id: UUID(),
+            scope: scope,
+            persona: persona,
+            depth: depth,
+            variationSeed: variationSeed
+        )
+        if let data = UserDefaults.standard.data(forKey: Self.pendingRunDefaultsKey),
+           let stored = try? JSONDecoder.backend.decode(PendingRun.self, from: data),
+           stored.matches(intent) {
+            return stored.id
+        }
+        if let data = try? JSONEncoder.backend.encode(intent) {
+            UserDefaults.standard.set(data, forKey: Self.pendingRunDefaultsKey)
+        }
+        return intent.id
+    }
+
+    /// The run completed (and was charged at most once under its ID) — the
+    /// next run of the same parameters is a new intent and must pay again.
+    private func clearPendingRun() {
+        UserDefaults.standard.removeObject(forKey: Self.pendingRunDefaultsKey)
+    }
+
     // MARK: - Scan pipeline
 
     /// Runs the full pipeline over `selectedScope` (full history by default,
-    /// or a date range / album for the scoped modes). Costs 1 credit,
+    /// or a date range / album for the scoped modes). Costs 1 gem,
     /// deducted by the backend *after* a successful insight (see
     /// `BackendInsightGenerator`) — the scope itself doesn't change the cost.
     ///
@@ -287,7 +343,8 @@ final class ScanViewModel {
                     persona: persona,
                     appUserID: appUserID,
                     variationSeed: 0,
-                    depth: depth
+                    depth: depth,
+                    runID: runID(scope: scope, persona: persona, depth: depth, variationSeed: 0)
                 )
 
                 // The backend just charged for this insight (deduct-after-
@@ -297,7 +354,7 @@ final class ScanViewModel {
                 await purchaseManager.reflectSpend(PurchaseManager.cost(for: depth))
 
                 // Deep only: caption the photos the results screen will show.
-                // Best-effort — the 5 credits bought the long story above; a
+                // Best-effort — the 5 gems bought the long story above; a
                 // captioning hiccup (or a cancel while captioning) must never
                 // lose it, so failures collapse to "no captions" and we still
                 // persist the record.
@@ -341,6 +398,7 @@ final class ScanViewModel {
     /// arm the in-app "ready" banner; if the whole app is backgrounded, also
     /// post a local notification so the user hears about it from outside.
     private func runFinished(with record: AnalysisRecord) {
+        clearPendingRun()
         if !isFlowPresented { backgroundCompletion = record }
         AnalysisNotifier.notifyCompletionIfBackgrounded(record)
     }
@@ -410,7 +468,7 @@ final class ScanViewModel {
     /// generation over the record's already-computed `stats` — no re-scan, no
     /// new Vision work — with an advancing `variationSeed` so the backend
     /// rotates the narrative lens and the result reads differently. Costs 1
-    /// credit via the backend's deduct-after-success, exactly like a normal
+    /// gem via the backend's deduct-after-success, exactly like a normal
     /// analysis. Caller should have verified affordability (UX gate) first.
     ///
     /// Drives `phase` (generatingInsight → results) so both presentation
@@ -418,7 +476,7 @@ final class ScanViewModel {
     /// Home/History the caller presents `ScanFlowView` to observe the phase.
     func regenerate(from record: AnalysisRecord, appUserID: String) {
         guard scanTask == nil else { return }
-        // A deep record regenerates deep (long story, 5 credits — the backend
+        // A deep record regenerates deep (long story, 5 gems — the backend
         // charges by the depth it writes at); standard regenerates for 1.
         let depth = record.depth ?? .standard
 
@@ -441,7 +499,13 @@ final class ScanViewModel {
                     persona: record.persona,
                     appUserID: appUserID,
                     variationSeed: seed,
-                    depth: depth
+                    depth: depth,
+                    runID: runID(
+                        scope: record.stats.scope,
+                        persona: record.persona,
+                        depth: depth,
+                        variationSeed: seed
+                    )
                 )
 
                 // A fresh take is charged like any analysis (1 CRD standard /
@@ -492,30 +556,5 @@ final class ScanViewModel {
         cancelScan()
         phase = .readyToScan
         refreshPermissionPhase()
-    }
-}
-
-/// Holds a UIKit background-task assertion for the lifetime of one analysis
-/// run, buying ~30 seconds of extra runtime if the user backgrounds the app
-/// mid-run — enough for a typical insight call to land (and be charged
-/// exactly once) instead of dying in flight. If iOS calls time first, the
-/// assertion is released and the run simply suspends with the app: on return
-/// it either completed or surfaces the normal failure screen. Because the
-/// backend charges deduct-after-success, a run that never finishes never
-/// charges — this class only ever helps a single charge complete.
-@MainActor
-private final class BackgroundKeepAlive {
-    private var taskID: UIBackgroundTaskIdentifier = .invalid
-
-    init(name: String) {
-        taskID = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
-            MainActor.assumeIsolated { self?.end() }
-        }
-    }
-
-    func end() {
-        guard taskID != .invalid else { return }
-        UIApplication.shared.endBackgroundTask(taskID)
-        taskID = .invalid
     }
 }

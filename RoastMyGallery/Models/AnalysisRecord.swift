@@ -7,8 +7,11 @@ struct AnalysisRecord: Codable, Identifiable, Equatable, Hashable, Sendable {
     let id: UUID
     let createdAt: Date
     let persona: Persona
-    let insight: Insight
-    let stats: PhotoStats
+    // `insight`/`stats` are var (not let) so the load-time category-name
+    // migration can rewrite legacy labels in place — see
+    // `modernizingCategories()` in CategoryVocabulary.swift.
+    var insight: Insight
+    var stats: PhotoStats
 
     /// Category → up to two representative asset local identifiers, built
     /// on-device during the scan so insight segments can show a matching photo.
@@ -39,11 +42,11 @@ struct AnalysisRecord: Codable, Identifiable, Equatable, Hashable, Sendable {
 /// `depth`), so legacy records classify correctly with no migration: anything
 /// saved before tiers existed has both fields nil and reads as `.standard`.
 enum AnalysisKind: String, CaseIterable, Identifiable, Sendable {
-    /// The classic 1-credit stats analysis.
+    /// The classic 1-gem stats analysis.
     case standard
-    /// The 5-credit date-range Deep Analysis.
+    /// The 5-gem date-range Deep Analysis.
     case deep
-    /// The 5-credit hand-picked Deep Vision batch.
+    /// The 5-gem hand-picked Deep Vision batch.
     case handPicked
 
     var id: String { rawValue }
@@ -56,7 +59,7 @@ enum AnalysisKind: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Same icons the "New Analysis" options sheet uses for each flow.
+    /// Same icons Home's "New Analysis" product cards use for each flow.
     var symbolName: String {
         switch self {
         case .standard: return "wand.and.stars"

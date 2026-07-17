@@ -19,10 +19,37 @@ struct RenderedShareCard: Identifiable {
     }
 }
 
-/// Identifiable wrapper so InsightView can drive `.sheet(item:)`.
+/// Identifiable wrapper so presenters can drive `.sheet(item:)`.
 struct ShareCardSet: Identifiable {
     let id = UUID()
     let cards: [RenderedShareCard]
+}
+
+extension ShareCardSet {
+    /// Renders the full three-style set (classic, editorial, Full Story) for
+    /// one record. Shared by every share entry point (InsightView, Home's
+    /// latest-roast shortcut) so they always offer the same styles. Only for
+    /// stats-based records — Deep Vision records have no card renderer.
+    @MainActor
+    static func render(for record: AnalysisRecord) async throws -> ShareCardSet {
+        let classic = try ShareCardRenderer()
+            .renderCard(insight: record.insight, stats: record.stats)
+        let editorial = try AltShareCardRenderer()
+            .renderCard(insight: record.insight, stats: record.stats)
+
+        // The Full Story set: resolve the same per-segment photos the
+        // narrative cards show (async — iCloud originals may need a fetch),
+        // then render one 9:16 panel per page.
+        let panels = await FullStoryBuilder.panels(for: record)
+        let storyImages = try await FullStoryRenderer()
+            .render(record: record, panels: panels)
+
+        return ShareCardSet(cards: [
+            RenderedShareCard(id: "classic", title: "Classic", image: classic),
+            RenderedShareCard(id: "editorial", title: "Editorial", image: editorial),
+            RenderedShareCard(id: "fullstory", title: "Full Story", images: storyImages),
+        ])
+    }
 }
 
 /// Share preview: swipe (or tap the style chips) between the classic card,

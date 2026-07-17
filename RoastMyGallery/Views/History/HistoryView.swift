@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Tab 2 — past analyses. Every saved record is viewable: in the credit model
-/// you already paid a credit to generate each one, so there's nothing to gate.
+/// Tab 2 — past analyses. Every saved record is viewable: in the gem model
+/// you already paid a gem to generate each one, so there's nothing to gate.
 struct HistoryView: View {
     @Environment(AnalysisHistoryStore.self) private var history
 

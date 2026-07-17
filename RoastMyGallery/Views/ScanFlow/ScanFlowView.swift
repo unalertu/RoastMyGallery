@@ -76,7 +76,7 @@ struct ScanFlowView: View {
             // Catch permission changes made in Settings while backgrounded.
             if newPhase == .active { scanViewModel.refreshPermissionPhase() }
         }
-        // Note: the credit spend is reflected by `ScanViewModel` the moment a
+        // Note: the gem spend is reflected by `ScanViewModel` the moment a
         // charged insight succeeds (see `reflectSpend`), so Home/Settings
         // update immediately. A cache re-open reaches `.results` without a
         // charge, which is exactly why reconciling here (on every `.results`)
