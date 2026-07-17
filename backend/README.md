@@ -20,10 +20,19 @@ backend/
 ├── lib/guard.js        # abuse gates: app secret, per-IP limit, daily cap
 ├── lib/revenuecat.js   # CRD balance read + signed adjustments (secret key)
 ├── lib/idempotency.js  # per-runId charge claims (Upstash/KV, fail-open)
+├── test/idempotency.test.js  # charge-once guarantees (`npm test`, no deps)
 ├── vercel.json         # maxDuration: 60 for the (slow) vision endpoint
 ├── package.json        # zero dependencies (built-in fetch)
 └── .env.example        # GEMINI_API_KEY template
 ```
+
+## Tests
+
+`npm test` (Node's built-in runner, no dependencies) runs the charge-
+idempotency suite: it fakes the three upstreams (KV, RevenueCat, Gemini) and
+drives the real `api/insight.js` / `api/deep-vision.js` handlers to prove a
+runId deducts exactly once — including a retry after a lost response and a
+concurrent retry while the first attempt is still in flight.
 
 ## API
 

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Vercel serverless backend for Roast My Gallery — turns anonymous photo stats into LLM-written insights.",
+  "scripts": {
+    "test": "node --test"
+  },
   "engines": {
     "node": ">=18"
   }
