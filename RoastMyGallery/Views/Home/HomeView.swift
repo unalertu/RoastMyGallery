@@ -87,6 +87,8 @@ struct HomeView: View {
     /// working, in which case reopen it (starting fresh mid-run is how you'd
     /// pay twice).
     private func start(_ kind: AnalysisKind) {
+        // Not open yet — the card is non-tappable, but guard anyway.
+        guard !kind.isComingSoon else { return }
         if scanViewModel.isRunActive {
             scanViewModel.presentFlow()
             return
@@ -173,7 +175,8 @@ struct HomeView: View {
     }
 
     private func productCard(_ kind: AnalysisKind) -> some View {
-        Button { start(kind) } label: {
+        let comingSoon = kind.isComingSoon
+        return Button { start(kind) } label: {
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 HStack {
                     ZStack {
@@ -185,7 +188,11 @@ struct HomeView: View {
                             .foregroundStyle(Theme.Colors.kindText(kind))
                     }
                     Spacer()
-                    costChip(Self.cost(for: kind))
+                    if comingSoon {
+                        soonChip
+                    } else {
+                        costChip(Self.cost(for: kind))
+                    }
                 }
 
                 Text(kind.displayName)
@@ -198,16 +205,34 @@ struct HomeView: View {
                     .lineLimit(3, reservesSpace: true)
 
                 HStack(spacing: Theme.Spacing.xs) {
-                    Text("Start")
-                    Image(systemName: "arrow.right")
+                    if comingSoon {
+                        Text("Coming soon")
+                    } else {
+                        Text("Start")
+                        Image(systemName: "arrow.right")
+                    }
                 }
                 .font(Theme.Typography.label)
-                .foregroundStyle(Theme.Colors.accent)
+                .foregroundStyle(comingSoon ? Theme.Colors.textSecondary : Theme.Colors.accent)
             }
             .frame(width: 210, alignment: .leading)
             .themedCard()
+            .opacity(comingSoon ? 0.55 : 1)
         }
         .buttonStyle(.plain)
+        .disabled(comingSoon)
+        .accessibilityHint(comingSoon ? "Coming soon" : "")
+    }
+
+    /// Stands in for the cost chip on cards that aren't open to users yet.
+    private var soonChip: some View {
+        Text("SOON")
+            .font(Theme.Typography.label)
+            .tracking(0.5)
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .padding(.horizontal, Theme.Spacing.s)
+            .padding(.vertical, Theme.Spacing.xs)
+            .background(Theme.Colors.textSecondary.opacity(0.12), in: Capsule())
     }
 
     /// Gem price in the same visual language as the balance pill.

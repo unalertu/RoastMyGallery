@@ -88,11 +88,10 @@ struct PurchaseSuccessView: View {
 
                 // Text content
                 if showContent {
-                    VStack(spacing: Theme.Spacing.m) {
+                    VStack(spacing: Theme.Spacing.l) {
                         Text("Purchase Successful!")
                             .font(Theme.Typography.display)
                             .multilineTextAlignment(.center)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
 
                         // Gem count with counter animation
                         VStack(spacing: Theme.Spacing.xs) {
@@ -113,7 +112,6 @@ struct PurchaseSuccessView: View {
                                 .font(Theme.Typography.body)
                                 .foregroundStyle(Theme.Colors.textSecondary)
                         }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
 
                         // New balance pill
                         HStack(spacing: Theme.Spacing.s) {
@@ -127,8 +125,8 @@ struct PurchaseSuccessView: View {
                         .padding(.vertical, Theme.Spacing.m)
                         .background(Theme.Colors.surface, in: Capsule())
                         .softShadow()
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 Spacer()

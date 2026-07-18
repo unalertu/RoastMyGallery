@@ -5,18 +5,18 @@
   ],
   "products" : [
     {
-      "displayPrice" : "0.99",
+      "displayPrice" : "1.99",
       "familyShareable" : false,
-      "internalID" : "8C0F5E1A-0000-4000-8000-000000000010",
+      "internalID" : "8C0F5E1A-0000-4000-8000-000000000020",
       "localizations" : [
         {
-          "description" : "Buy 10 Gems for analyses",
-          "displayName" : "10 Gems",
+          "description" : "Buy 20 Gems for analyses",
+          "displayName" : "20 Gems",
           "locale" : "en_US"
         }
       ],
-      "productID" : "credits_pack_10",
-      "referenceName" : "10 Gems",
+      "productID" : "credits_pack_20",
+      "referenceName" : "20 Gems",
       "type" : "Consumable"
     },
     {
@@ -32,6 +32,21 @@
       ],
       "productID" : "credits_pack_50",
       "referenceName" : "50 Gems",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "7.99",
+      "familyShareable" : false,
+      "internalID" : "8C0F5E1A-0000-4000-8000-000000000120",
+      "localizations" : [
+        {
+          "description" : "Buy 120 Gems for analyses",
+          "displayName" : "120 Gems",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "credits_pack_120",
+      "referenceName" : "120 Gems",
       "type" : "Consumable"
     }
   ],

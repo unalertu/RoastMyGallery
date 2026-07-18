@@ -14,13 +14,10 @@ struct SettingsView: View {
     @State private var showDeleteConfirmation = false
     @State private var showShareSheet = false
 
-    /// Populated after a restore attempt to drive the result alert.
-    @State private var restoreMessage: String?
-    @State private var isRestoring = false
     /// Shown when the user enables the reminder but notifications are off.
     @State private var showNotificationDeniedAlert = false
 
-    /// Drives the monthly reminder. Persisted so the row reflects the user's
+    /// Drives the weekly reminder. Persisted so the row reflects the user's
     /// choice, but the actual scheduling happens in `.onChange` below via
     /// `ReminderScheduler` (which requests permission lazily, only here).
     @AppStorage("monthlyReminderEnabled") private var monthlyReminderEnabled = false
@@ -61,17 +58,6 @@ struct SettingsView: View {
         } message: {
             Text("This removes every saved analysis from this device. It can't be undone.")
         }
-        .alert(
-            "Restore Purchases",
-            isPresented: Binding(
-                get: { restoreMessage != nil },
-                set: { if !$0 { restoreMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(restoreMessage ?? "")
-        }
         .alert("Notifications are off", isPresented: $showNotificationDeniedAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -80,7 +66,7 @@ struct SettingsView: View {
             }
             Button("Not now", role: .cancel) {}
         } message: {
-            Text("To get a monthly re-scan reminder, turn on notifications for Roast My Gallery in iOS Settings.")
+            Text("To get a weekly re-scan reminder, turn on notifications for Roast My Gallery in iOS Settings.")
         }
         .onChange(of: monthlyReminderEnabled) { _, enabled in
             if enabled {
@@ -106,9 +92,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Gems")
                         .font(Theme.Typography.headline)
-                    Text(purchaseManager.isSubscribed
-                         ? "Subscribed — \(PurchaseManager.advertisedGems(forProductID: PurchaseManager.ProductID.monthly.rawValue) ?? 50) gems top up monthly"
-                         : "\(PurchaseManager.analysisCost) gem per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
+                    Text("\(PurchaseManager.analysisCost) gem per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
@@ -125,51 +109,9 @@ struct SettingsView: View {
                 .background(Theme.Colors.accentSoft, in: Capsule())
             }
 
-            if purchaseManager.isSubscribed {
-                Text("Subscribed · renews monthly")
-                    .font(Theme.Typography.label)
-                    .tracking(1)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-
             Divider().overlay(Theme.Colors.background)
-            Button(purchaseManager.isSubscribed ? "Get more gems" : "Get gems") { showPaywall = true }
+            Button("Get gems") { showPaywall = true }
                 .buttonStyle(SoftButtonStyle())
-
-            Divider().overlay(Theme.Colors.background)
-            Button {
-                Task {
-                    isRestoring = true
-                    defer { isRestoring = false }
-                    restoreMessage = await purchaseManager.restorePurchases().userMessage
-                }
-            } label: {
-                HStack(spacing: Theme.Spacing.s) {
-                    if isRestoring { ProgressView() }
-                    Text(isRestoring ? "Restoring…" : "Restore Purchases")
-                }
-                .font(Theme.Typography.headline)
-                .foregroundStyle(Theme.Colors.accent)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.s)
-            }
-            .disabled(isRestoring)
-
-            if purchaseManager.isSubscribed {
-                Divider().overlay(Theme.Colors.background)
-                Button {
-                    if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
-                        openURL(url)
-                    }
-                } label: {
-                    SettingsRowLabel(
-                        icon: "creditcard",
-                        title: "Manage Subscription",
-                        detail: "Change or cancel in the App Store"
-                    )
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
@@ -181,7 +123,7 @@ struct SettingsView: View {
                 Image(systemName: "lock.shield")
                     .font(.system(size: 22, weight: .light))
                     .foregroundStyle(Theme.Colors.accent)
-                Text("Your photos are analyzed entirely on this device and never leave it. The only exception: Deep Analysis photos you hand-pick and explicitly approve, batch by batch.")
+                Text("Your photos are analyzed on this device, and by default only anonymous statistics are sent. Photos leave your phone only when you opt in — the AI captions and Deep Vision you approve, batch by batch — and they're never stored on the server.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineSpacing(3)
@@ -237,11 +179,7 @@ struct SettingsView: View {
     private var preferencesSection: some View {
         SettingsSection(title: "Preferences") {
             Toggle(isOn: $monthlyReminderEnabled) {
-                SettingsRowLabel(
-                    icon: "bell",
-                    title: "Monthly re-scan reminder",
-                    detail: "A gentle nudge when there's fresh material"
-                )
+                SettingsRowLabel(icon: "bell", title: "Notifications", detail: nil)
             }
             .tint(Theme.Colors.accent)
 

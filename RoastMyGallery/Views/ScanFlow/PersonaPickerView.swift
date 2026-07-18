@@ -492,7 +492,7 @@ private struct AlbumPickerSheet: View {
                 Text("Full access needed for albums")
                     .font(Theme.Typography.title)
                     .multilineTextAlignment(.center)
-                Text("You've given Roast My Gallery access to only selected photos, so your albums stay hidden. Switch to Full Access to analyze a whole album — your photos still never leave your device.")
+                Text("You've given Roast My Gallery access to only selected photos, so your albums stay hidden. Switch to Full Access to analyze a whole album — the scan still runs on your device, and only anonymous stats are sent.")
                     .font(Theme.Typography.body)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.center)

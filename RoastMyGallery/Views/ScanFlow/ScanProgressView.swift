@@ -28,9 +28,12 @@ struct ScanProgressView: View {
                         .animation(Theme.motion, value: progress.completed)
                 }
 
-                Text("Everything stays on your device.")
+                Text(isDeep
+                     ? "Scanning on your phone — only the photos you approved get sent for captions."
+                     : "Everything stays on your device.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
 
             case .generatingInsight:
                 DriftingRing()

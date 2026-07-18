@@ -277,14 +277,14 @@ struct GalleryStatsView: View {
 
     private func locationSection(_ clusters: [LocationClusterStat]) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-            sectionHeader(icon: "location.fill", title: "Location Clusters")
+            sectionHeader(icon: "location.fill", title: "Photo Locations")
 
             HStack(spacing: Theme.Spacing.m) {
                 VStack(spacing: Theme.Spacing.xs) {
                     Text("\(clusters.count)")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(Theme.Colors.accent)
-                    Text("Clusters")
+                    Text("Areas")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
@@ -295,7 +295,7 @@ struct GalleryStatsView: View {
                         Text("\(Int((topShare * 100).rounded()))%")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(Theme.Colors.accent)
-                        Text("Top cluster")
+                        Text("Top area")
                             .font(Theme.Typography.caption)
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }

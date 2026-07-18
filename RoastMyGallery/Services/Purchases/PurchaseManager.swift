@@ -3,14 +3,14 @@ import RevenueCat
 import Observation
 
 /// Single source of truth for monetization — now backed by RevenueCat +
-/// Virtual Currencies, not raw StoreKit. Views read the gem balance and
-/// subscription status from here and never touch the SDK directly.
+/// Virtual Currencies, not raw StoreKit. Views read the gem balance from
+/// here and never touch the SDK directly.
 ///
 /// Model:
 /// - Gems are a RevenueCat **Virtual Currency** (code `CRD`). RevenueCat is
-///   the authoritative balance: purchases (consumable packs, subscription
-///   renewals) *grant* gems automatically via dashboard product
-///   associations. This client only ever *reads* the balance.
+///   the authoritative balance: consumable-pack purchases *grant* gems
+///   automatically via dashboard product associations. This client only ever
+///   *reads* the balance.
 /// - Spending is NOT possible from the SDK by design. Every deduction is a
 ///   negative adjustment issued server-side by our Vercel backend (which
 ///   holds the RevenueCat secret key), folded into the paid endpoints
@@ -39,14 +39,11 @@ final class PurchaseManager {
     static let gemCurrencyCode = "CRD"
 
     /// Product identifiers — must match App Store Connect and the RevenueCat
-    /// Offering. Packs are consumables; `monthly` is the auto-renewable
-    /// subscription that grants +50 CRD on each paid renewal (configured as a
-    /// Virtual Currency *associated product* in the dashboard, so no
-    /// renewal-listening code is needed here).
+    /// Offering. Both are one-time consumable gem packs.
     enum ProductID: String, CaseIterable {
-        case pack10 = "credits_pack_10"
+        case pack20 = "credits_pack_20"
         case pack50 = "credits_pack_50"
-        case monthly = "credits_monthly_50"
+        case pack120 = "credits_pack_120"
     }
 
     // MARK: - Gem costs (app-side constants; the real gate is RevenueCat)
@@ -71,16 +68,18 @@ final class PurchaseManager {
     /// these in sync with it.
     nonisolated static func advertisedGems(forProductID id: String) -> Int? {
         switch ProductID(rawValue: id) {
-        case .pack10: return 10
+        case .pack20: return 20
         case .pack50: return 50
-        case .monthly: return 50
+        case .pack120: return 120
         case nil: return nil
         }
     }
 
-    /// Whether a product is the recurring subscription (vs. a one-time pack).
-    nonisolated static func isSubscription(productID id: String) -> Bool {
-        ProductID(rawValue: id) == .monthly
+    /// Optional highlight badge for a pack card (nil = no badge). We flag the
+    /// largest pack, which has the lowest per-gem price. Kept here so the
+    /// paywall and any future surface stay in sync.
+    nonisolated static func promoBadge(forProductID id: String) -> String? {
+        ProductID(rawValue: id) == .pack120 ? "BEST VALUE" : nil
     }
 
     // MARK: - Published state
@@ -89,10 +88,6 @@ final class PurchaseManager {
     private(set) var offerings: Offerings?
     /// Authoritative CRD balance, mirrored from RevenueCat.
     private(set) var gemBalance = 0
-    /// Whether the monthly gem subscription is active. Drives the
-    /// "Subscriber" badge only — it grants no features beyond the gems it
-    /// tops up. Independent from the balance.
-    private(set) var isSubscribed = false
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInFlight = false
     var lastError: String?
@@ -123,7 +118,7 @@ final class PurchaseManager {
     /// Keychain-backed ID survives app deletion on the same device, so a delete
     /// + reinstall resolves the same RevenueCat customer and the balance is
     /// preserved. (Cross-device / new-phone continuity still needs a real
-    /// login — see `restorePurchases`.)
+    /// login into a stable RevenueCat identity.)
     static func configure() {
         guard !Purchases.isConfigured else { return }
         #if DEBUG
@@ -135,25 +130,23 @@ final class PurchaseManager {
     }
 
     init() {
-        // React to subscription changes / cross-device updates. Guarded so
-        // SwiftUI previews (which never call `configure()`) don't crash.
+        // React to cross-device transaction updates by re-reading the balance.
+        // Guarded so SwiftUI previews (which never call `configure()`) don't crash.
         guard Purchases.isConfigured else { return }
         customerInfoTask = Task { [weak self] in
-            for await info in Purchases.shared.customerInfoStream {
+            for await _ in Purchases.shared.customerInfoStream {
                 guard let self else { return }
-                self.updateSubscription(from: info)
                 await self.refreshBalance()
             }
         }
     }
 
-    /// One-shot startup: load products, confirm subscription status, read the
-    /// balance, and grant first-launch starter gems if this user is new.
+    /// One-shot startup: load products, read the balance, and grant
+    /// first-launch starter gems if this user is new.
     func bootstrap() async {
         guard Purchases.isConfigured else { return }
         primeCachedBalance()
         await loadOfferings()
-        await refreshCustomerInfo()
         await ensureStarterGrant()
         await refreshBalance()
     }
@@ -169,22 +162,6 @@ final class PurchaseManager {
         } catch {
             lastError = "Couldn't load products: \(error.localizedDescription)"
         }
-    }
-
-    // MARK: - Subscription status
-
-    func refreshCustomerInfo() async {
-        guard Purchases.isConfigured else { return }
-        do {
-            updateSubscription(from: try await Purchases.shared.customerInfo())
-        } catch {
-            // Keep last known status on transient failure.
-        }
-    }
-
-    private func updateSubscription(from info: CustomerInfo) {
-        isSubscribed = !info.entitlements.active.isEmpty
-            || info.activeSubscriptions.contains(ProductID.monthly.rawValue)
     }
 
     // MARK: - Balance (Virtual Currency)
@@ -234,7 +211,6 @@ final class PurchaseManager {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             guard !result.userCancelled else { return }
-            updateSubscription(from: result.customerInfo)
             // RevenueCat applies the gem grant server-side; drop the stale
             // cache and re-read.
             let balanceBefore = gemBalance
@@ -282,50 +258,6 @@ final class PurchaseManager {
         registerPendingPurchase()
     }
     #endif
-
-    enum RestoreResult: Equatable {
-        case restoredSubscription
-        case noPurchases
-        case failed(String)
-
-        /// User-facing outcome message, shared by every restore entry point
-        /// (Settings and the paywall) so restoring is never a silent no-op.
-        var userMessage: String {
-            switch self {
-            case .restoredSubscription:
-                return "Your subscription has been restored. Monthly gems will keep topping up."
-            case .noPurchases:
-                return "No subscription was found on this Apple ID. (Consumable gem packs can't be restored — see support.)"
-            case .failed(let reason):
-                return reason
-            }
-        }
-    }
-
-    /// Restores the *subscription* entitlement. Consumable gem packs cannot
-    /// be restored by design — once granted, the gems live in RevenueCat's
-    /// balance for this App User ID. That ID is Keychain-persisted
-    /// (`KeychainAppUserID`), so the balance already survives a delete +
-    /// reinstall on the SAME device. Cross-device continuity (a new phone)
-    /// still requires logging the user into a stable RevenueCat identity — the
-    /// Keychain ID does not reliably travel between devices. See known
-    /// limitations.
-    @discardableResult
-    func restorePurchases() async -> RestoreResult {
-        guard Purchases.isConfigured else { return .failed("Store unavailable.") }
-        lastError = nil
-        do {
-            let info = try await Purchases.shared.restorePurchases()
-            updateSubscription(from: info)
-            Purchases.shared.invalidateVirtualCurrenciesCache()
-            await refreshBalance()
-            return isSubscribed ? .restoredSubscription : .noPurchases
-        } catch {
-            let message = "Restore failed: \(error.localizedDescription)"
-            lastError = message
-            return .failed(message)
-        }
-    }
 
     // MARK: - Grants (via our backend, which holds the secret key)
 

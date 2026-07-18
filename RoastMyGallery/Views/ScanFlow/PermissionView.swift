@@ -41,9 +41,9 @@ struct PermissionView: View {
                     .font(.system(size: 26, weight: .light))
                     .foregroundStyle(Theme.Colors.accent)
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text("Your photos never leave your device")
+                    Text("Your photos stay on your device")
                         .font(Theme.Typography.headline)
-                    Text("All analysis happens on your phone. Only anonymous statistics are used to write your story.")
+                    Text("The scan runs on your phone — only anonymous statistics are used to write your story. A photo is sent to AI only if you turn on AI captions or Deep Vision, and only the ones you approve.")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineSpacing(2)

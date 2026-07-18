@@ -1,7 +1,7 @@
 import SwiftUI
 import RevenueCat
 
-/// Gem store — buy one-time gem packs or subscribe for a monthly top-up.
+/// Gem store — buy one-time gem packs.
 /// Data comes from the current RevenueCat Offering; the pastel DesignSystem is
 /// unchanged. Framing is matter-of-fact: "what does X gems get me."
 struct PaywallView: View {
@@ -36,11 +36,6 @@ struct PaywallView: View {
     @State private var successGems = 0
     @State private var successBalance = 0
 
-    /// Populated after a restore attempt to drive the result alert — the same
-    /// pattern SettingsView uses, so restoring is never a silent no-op.
-    @State private var restoreMessage: String?
-    @State private var isRestoring = false
-
     private var packages: [Package] {
         purchaseManager.offerings?.current?.availablePackages ?? []
     }
@@ -74,21 +69,6 @@ struct PaywallView: View {
                             }
                         }
 
-                        Button {
-                            Task {
-                                isRestoring = true
-                                defer { isRestoring = false }
-                                restoreMessage = await purchaseManager.restorePurchases().userMessage
-                            }
-                        } label: {
-                            HStack(spacing: Theme.Spacing.s) {
-                                if isRestoring { ProgressView() }
-                                Text(isRestoring ? "Restoring…" : "Restore Purchases")
-                            }
-                        }
-                        .buttonStyle(QuietButtonStyle())
-                        .disabled(isRestoring)
-
                         if let error = purchaseManager.lastError {
                             Text(error)
                                 .font(Theme.Typography.caption)
@@ -110,17 +90,6 @@ struct PaywallView: View {
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
-            }
-            .alert(
-                "Restore Purchases",
-                isPresented: Binding(
-                    get: { restoreMessage != nil },
-                    set: { if !$0 { restoreMessage = nil } }
-                )
-            ) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(restoreMessage ?? "")
             }
             .onChange(of: purchaseManager.lastPurchaseResult?.newBalance) { _, _ in
                 // Show the celebration screen when a purchase succeeds.
@@ -224,25 +193,31 @@ struct PaywallView: View {
     private func packageCard(_ package: Package) -> some View {
         let productID = package.storeProduct.productIdentifier
         let gems = PurchaseManager.advertisedGems(forProductID: productID)
-        let isSub = PurchaseManager.isSubscription(productID: productID)
 
         return Button {
             Task { await purchaseManager.purchase(package) }
         } label: {
             VStack(spacing: Theme.Spacing.xs) {
+                if let badge = PurchaseManager.promoBadge(forProductID: productID) {
+                    Text(badge)
+                        .font(Theme.Typography.label)
+                        .tracking(1.5)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .padding(.horizontal, Theme.Spacing.s)
+                        .padding(.vertical, Theme.Spacing.xs)
+                        .background(Theme.Colors.background, in: Capsule())
+                }
                 if let gems {
-                    Text(isSub ? "\(gems) gems / month" : "\(gems) gems")
+                    Text("\(gems) gems")
                         .font(Theme.Typography.headline)
-                    Text(gemFraming(gems: gems, isSub: isSub))
+                    Text(gemFraming(gems: gems))
                         .font(Theme.Typography.caption)
                         .opacity(0.9)
                 } else {
                     Text(package.storeProduct.localizedTitle)
                         .font(Theme.Typography.headline)
                 }
-                Text(isSub
-                     ? "\(package.storeProduct.localizedPriceString) / month · renews automatically"
-                     : package.storeProduct.localizedPriceString)
+                Text(package.storeProduct.localizedPriceString)
                     .font(Theme.Typography.caption)
                     .opacity(0.85)
             }
@@ -251,12 +226,11 @@ struct PaywallView: View {
         .disabled(purchaseManager.purchaseInFlight)
     }
 
-    /// "10 gems = 10 analyses, or 2 deep-vision batches".
-    private func gemFraming(gems: Int, isSub: Bool) -> String {
+    /// "20 gems = 20 analyses, or 4 deep-vision batches".
+    private func gemFraming(gems: Int) -> String {
         let analyses = gems / PurchaseManager.analysisCost
         let batches = gems / PurchaseManager.deepVisionCost
-        let base = "\(analyses) analyses, or \(batches) deep-vision \(batches == 1 ? "batch" : "batches")"
-        return isSub ? "Each month: \(base)" : base
+        return "\(analyses) analyses, or \(batches) deep-vision \(batches == 1 ? "batch" : "batches")"
     }
 
     // MARK: - DEBUG-only dev tools

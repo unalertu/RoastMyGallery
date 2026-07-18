@@ -171,10 +171,16 @@ struct InsightView: View {
 
     @ViewBuilder
     private var deepAnalysisButton: some View {
-        // Gated on gems now, not Pro. The affordability check is UX only;
-        // the actual 5-gem charge is issued by the backend after a
-        // successful Deep Vision run (see DeepVisionRunner).
-        if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
+        // Hand-Picked (Deep Vision) isn't open to users yet — show a disabled
+        // "coming soon" teaser instead of launching the flow. Drop this branch
+        // (and `AnalysisKind.handPicked.isComingSoon`) to open it back up.
+        if AnalysisKind.handPicked.isComingSoon {
+            Button {} label: {
+                Label("Hand-Pick Photos to Read · Coming soon", systemImage: "photo.badge.plus")
+            }
+            .buttonStyle(SoftButtonStyle())
+            .disabled(true)
+        } else if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
             Button {
                 // Persona + stats inherited from this analysis; the flow is
                 // presented by RootView's cover (over the whole tab shell),

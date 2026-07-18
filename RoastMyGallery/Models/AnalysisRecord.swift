@@ -67,6 +67,17 @@ enum AnalysisKind: String, CaseIterable, Identifiable, Sendable {
         case .handPicked: return "photo.badge.plus"
         }
     }
+
+    /// Not yet open to users — shown as a "Soon" teaser and not launchable.
+    /// Hand-Picked (Deep Vision) is gated off until the flow is ready; flip
+    /// this to `false` (or drop the case here) to open it back up. History
+    /// still classifies existing hand-picked records via `AnalysisRecord.kind`.
+    var isComingSoon: Bool {
+        switch self {
+        case .handPicked: return true
+        case .standard, .deep: return false
+        }
+    }
 }
 
 extension AnalysisRecord {

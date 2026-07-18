@@ -92,7 +92,7 @@ targets:
 # (which needs the Paid Apps Agreement signed + products "Ready to Submit" +
 # propagation) and offerings come back empty. Pointing Run at
 # RoastMyGallery.storekit lets the paywall populate from the local products
-# (credits_pack_10 / credits_pack_50) during development.
+# (credits_pack_20 / credits_pack_50 / credits_pack_120) during development.
 # NOTE: local StoreKit purchases do NOT trigger RevenueCat's server-side
 # Virtual Currency grant — the gem balance won't rise from a simulated buy.
 # Full gem-grant verification still requires real App Store sandbox.

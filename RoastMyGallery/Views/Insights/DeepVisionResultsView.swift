@@ -62,8 +62,18 @@ private struct DeepVisionSegmentCard: View {
         let image: UIImage
     }
 
-    /// Up to three photos per card keeps the layout calm.
-    private var displayAssetIDs: [String] { Array(segment.assetIDs.prefix(3)) }
+    /// Up to three photos per card keeps the layout calm. Deduplicated first:
+    /// the backend maps `photoIndexes` straight through and can reference the
+    /// same photo twice, which would put a duplicate asset ID — and therefore a
+    /// duplicate SwiftUI identity — into the `ForEach` below. That corrupts
+    /// SwiftUI's identity map and crashes the app the moment the list animates
+    /// from empty to populated (the History / cold-relaunch path, where
+    /// thumbnails resolve asynchronously). Showing the same photo once per card
+    /// is also just the correct behavior.
+    private var displayAssetIDs: [String] {
+        var seen = Set<String>()
+        return Array(segment.assetIDs.filter { seen.insert($0).inserted }.prefix(3))
+    }
 
     private var resolvedImages: [ResolvedImage] {
         displayAssetIDs.compactMap { id in

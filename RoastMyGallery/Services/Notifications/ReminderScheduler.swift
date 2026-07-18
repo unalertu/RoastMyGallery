@@ -1,7 +1,7 @@
 import Foundation
 import UserNotifications
 
-/// The single local notification the app schedules: a monthly nudge to re-scan
+/// The single local notification the app schedules: a weekly nudge to re-scan
 /// the gallery.
 ///
 /// PERMISSION POLICY: authorization is requested lazily — only the first time
@@ -10,6 +10,8 @@ import UserNotifications
 /// caller can revert its toggle and point the user at iOS Settings.
 enum ReminderScheduler {
     /// Stable identifier so we only ever have one pending reminder request.
+    /// Kept as the historical value so an already-scheduled reminder from a
+    /// previous app version is replaced (not duplicated) on the next enable.
     static let reminderID = "monthly-rescan-reminder"
 
     enum EnableResult {
@@ -47,13 +49,14 @@ enum ReminderScheduler {
     private static func schedule(on center: UNUserNotificationCenter) async {
         let content = UNMutableNotificationContent()
         content.title = "Time to re-scan"
-        content.body = "A fresh month of photos is waiting to be roasted. See what changed."
+        content.body = "This week's photos are waiting to be roasted. See what changed."
         content.sound = .default
 
-        // Fires on the 1st of every month at 11:00 local time. `repeats: true`
-        // with a partial DateComponents set gives a recurring monthly trigger.
+        // Fires every Sunday at 11:00 local time. `repeats: true` with a partial
+        // DateComponents set (weekday + hour) gives a recurring weekly trigger.
+        // `weekday` is 1-based with Sunday = 1.
         var components = DateComponents()
-        components.day = 1
+        components.weekday = 1
         components.hour = 11
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
 
