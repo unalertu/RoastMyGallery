@@ -166,8 +166,8 @@ struct SettingsView: View {
             } label: {
                 SettingsRowLabel(
                     icon: "doc.plaintext",
-                    title: "Terms of Use (EULA)",
-                    detail: "Apple's standard end-user license"
+                    title: "Terms of Use",
+                    detail: "The terms you agree to by using the app"
                 )
             }
             .buttonStyle(.plain)
@@ -303,8 +303,7 @@ struct SettingsView: View {
     /// `mailto:` URL pre-filled with a support address plus app/device context,
     /// so feedback arrives with the info we'd otherwise have to ask for.
     private var feedbackMailURL: URL? {
-        // TODO: swap for the real support address before shipping.
-        let supportAddress = "support@example.com"
+        let supportAddress = "roastmygallery@gmail.com"
         let body = """
 
 
@@ -330,9 +329,8 @@ struct SettingsView: View {
     }
 
     // MARK: - URLs
-    // TODO: Replace these placeholder URLs with the real ones before shipping.
-    private static let privacyPolicyURL = "https://roastmygallery.com/privacy"
-    private static let termsOfUseURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+    private static let privacyPolicyURL = "https://roastmygallery.unlertu.workers.dev/privacy/"
+    private static let termsOfUseURL = "https://roastmygallery.unlertu.workers.dev/terms/"
 }
 
 // MARK: - Section & row building blocks
