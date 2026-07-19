@@ -75,10 +75,6 @@ struct PaywallView: View {
                                 .foregroundStyle(Theme.Colors.danger)
                                 .multilineTextAlignment(.center)
                         }
-
-                        #if DEBUG
-                        debugTools
-                        #endif
                     }
                     .padding(Theme.Spacing.l)
                 }
@@ -90,6 +86,11 @@ struct PaywallView: View {
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
+            }
+            // A user-cancelled purchase never sets `lastError`, so this only
+            // fires on real failures (see PurchaseManager.purchase).
+            .onChange(of: purchaseManager.lastError) { _, newError in
+                if newError != nil { Haptics.error() }
             }
             .onChange(of: purchaseManager.lastPurchaseResult?.newBalance) { _, _ in
                 // Show the celebration screen when a purchase succeeds.
@@ -159,11 +160,14 @@ struct PaywallView: View {
                 title: "\(PurchaseManager.analysisCost) gem = 1 gallery analysis",
                 detail: "Full-history scan plus an AI-written insight."
             )
+            // Deep Analysis, not Deep Vision: the hand-picked Deep Vision flow
+            // is gated behind `AnalysisKind.handPicked.isComingSoon`, and the
+            // paywall must only sell what users can actually run today.
             explainerRow(
                 icon: "diamond.fill",
                 tint: Theme.Colors.dustyRose,
-                title: "\(PurchaseManager.deepVisionCost) gems = 1 Deep Vision batch",
-                detail: "Photo-by-photo commentary on up to 30 hand-picked photos."
+                title: "\(PurchaseManager.deepAnalysisCost) gems = 1 Deep Analysis",
+                detail: "A 2–3× richer story over any date range, with an AI caption on every photo."
             )
         }
         .themedCard()
@@ -195,6 +199,7 @@ struct PaywallView: View {
         let gems = PurchaseManager.advertisedGems(forProductID: productID)
 
         return Button {
+            Haptics.primary()
             Task { await purchaseManager.purchase(package) }
         } label: {
             VStack(spacing: Theme.Spacing.xs) {
@@ -226,48 +231,12 @@ struct PaywallView: View {
         .disabled(purchaseManager.purchaseInFlight)
     }
 
-    /// "20 gems = 20 analyses, or 4 deep-vision batches".
+    /// "= 40 analyses" — deliberately just the one number: the deep-analysis
+    /// math already lives in the explainer card above, and repeating it here
+    /// crowded the pack cards.
     private func gemFraming(gems: Int) -> String {
         let analyses = gems / PurchaseManager.analysisCost
-        let batches = gems / PurchaseManager.deepVisionCost
-        return "\(analyses) analyses, or \(batches) deep-vision \(batches == 1 ? "batch" : "batches")"
+        return "= \(analyses) \(analyses == 1 ? "analysis" : "analyses")"
     }
 
-    // MARK: - DEBUG-only dev tools
-
-    #if DEBUG
-    /// Dev-only panel, compiled out of Release builds entirely. Simulates the
-    /// Ask to Buy pending outcome through the REAL PurchaseManager handler
-    /// (see `debugSimulatePaymentPending`) so the message above renders
-    /// exactly as a real deferred purchase would show it — Apple offers no
-    /// sandbox switch to trigger one on demand.
-    ///
-    /// STRIP BEFORE SHIPPING: remove this section and
-    /// `PurchaseManager.debugSimulatePaymentPending()` — or at minimum
-    /// re-confirm both are still `#if DEBUG`-gated — before the final
-    /// App Store archive.
-    private var debugTools: some View {
-        VStack(spacing: Theme.Spacing.s) {
-            Text("DEBUG BUILD ONLY")
-                .font(Theme.Typography.label)
-                .tracking(1.5)
-                .foregroundStyle(Theme.Colors.danger)
-            Button("Simulate Ask to Buy (pending purchase)") {
-                purchaseManager.debugSimulatePaymentPending()
-            }
-            .font(Theme.Typography.caption)
-            .foregroundStyle(Theme.Colors.danger)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(Theme.Spacing.m)
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.button)
-                .stroke(
-                    Theme.Colors.danger.opacity(0.5),
-                    style: StrokeStyle(lineWidth: 1, dash: [5, 4])
-                )
-        )
-        .padding(.top, Theme.Spacing.m)
-    }
-    #endif
 }

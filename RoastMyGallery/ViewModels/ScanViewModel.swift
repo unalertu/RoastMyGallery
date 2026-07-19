@@ -384,6 +384,9 @@ final class ScanViewModel {
     /// post a local notification so the user hears about it from outside.
     private func runFinished(with record: AnalysisRecord) {
         clearPendingRun()
+        // Counted here (real completions only) so the results screen's
+        // automatic rating prompt never triggers off a free cache re-open.
+        ReviewPrompter.recordCompletedRun()
         if !isFlowPresented { backgroundCompletion = record }
         AnalysisNotifier.notifyCompletionIfBackgrounded(record)
     }

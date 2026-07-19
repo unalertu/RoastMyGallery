@@ -82,16 +82,22 @@ struct ScanProgressView: View {
                 // Same as the toolbar's minimize: the run keeps working and
                 // the status banner (plus a completion notification if the
                 // app is backgrounded) picks it up from here.
-                Button("Continue in Background") { scanViewModel.minimizeFlow() }
-                    .buttonStyle(SoftButtonStyle())
+                Button("Continue in Background") {
+                    Haptics.tap()
+                    scanViewModel.minimizeFlow()
+                }
+                .buttonStyle(SoftButtonStyle())
                 // Cancel is only offered during the on-device scan, which is
                 // free to abandon. Once generation starts the request is
                 // already with the backend — which charges on success whether
                 // or not we're still listening — so cancelling could only
                 // discard a story that's being paid for.
                 if case .scanning = scanViewModel.phase {
-                    Button("Cancel") { scanViewModel.cancelScan() }
-                        .buttonStyle(QuietButtonStyle())
+                    Button("Cancel") {
+                        Haptics.tap()
+                        scanViewModel.cancelScan()
+                    }
+                    .buttonStyle(QuietButtonStyle())
                 } else {
                     Text("Your story is already being written and can't be cancelled — feel free to keep browsing.")
                         .font(Theme.Typography.caption)

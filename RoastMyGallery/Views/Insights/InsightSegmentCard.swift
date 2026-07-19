@@ -47,7 +47,10 @@ struct InsightSegmentCard: View {
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small))
                         .contentShape(Rectangle())
-                        .onTapGesture { zoomedPhoto = ZoomablePhoto(image: thumbnail, assetID: resolvedAssetID ?? assetIDs.first) }
+                        .onTapGesture {
+                            Haptics.tap()
+                            zoomedPhoto = ZoomablePhoto(image: thumbnail, assetID: resolvedAssetID ?? assetIDs.first)
+                        }
 
                     // Deep-analysis photo caption: a short AI note under the
                     // photo it describes.

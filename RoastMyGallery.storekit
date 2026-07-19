@@ -10,13 +10,13 @@
       "internalID" : "8C0F5E1A-0000-4000-8000-000000000020",
       "localizations" : [
         {
-          "description" : "Buy 20 Gems for analyses",
-          "displayName" : "20 Gems",
+          "description" : "Buy 10 Gems for analyses",
+          "displayName" : "10 Gems",
           "locale" : "en_US"
         }
       ],
-      "productID" : "credits_pack_20",
-      "referenceName" : "20 Gems",
+      "productID" : "credits_pack_10",
+      "referenceName" : "10 Gems",
       "type" : "Consumable"
     },
     {
@@ -25,13 +25,13 @@
       "internalID" : "8C0F5E1A-0000-4000-8000-000000000050",
       "localizations" : [
         {
-          "description" : "Buy 50 Gems for analyses",
-          "displayName" : "50 Gems",
+          "description" : "Buy 40 Gems for analyses",
+          "displayName" : "40 Gems",
           "locale" : "en_US"
         }
       ],
-      "productID" : "credits_pack_50",
-      "referenceName" : "50 Gems",
+      "productID" : "credits_pack_40",
+      "referenceName" : "40 Gems",
       "type" : "Consumable"
     },
     {

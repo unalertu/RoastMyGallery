@@ -44,6 +44,7 @@ struct PersonaPickerView: View {
                         persona: persona,
                         isSelected: scanViewModel.selectedPersona == persona
                     ) {
+                        Haptics.selection()
                         scanViewModel.selectedPersona = persona
                     }
                 }
@@ -59,8 +60,10 @@ struct PersonaPickerView: View {
                 // paywall early if the balance looks short. The authoritative
                 // gate is RevenueCat rejecting an over-spend server-side.
                 if purchaseManager.canAfford(analysisCost) {
+                    Haptics.primary()
                     scanViewModel.startScan(appUserID: purchaseManager.appUserID)
                 } else {
+                    Haptics.warning()
                     paywallContext = .analysis(cost: analysisCost, have: purchaseManager.gemBalance)
                     showPaywall = true
                 }
@@ -162,6 +165,7 @@ struct PersonaPickerView: View {
                 .foregroundStyle(Theme.Colors.accent)
 
             Button {
+                Haptics.tap()
                 showDateRangePicker = true
             } label: {
                 HStack(spacing: Theme.Spacing.m) {
@@ -203,7 +207,10 @@ struct PersonaPickerView: View {
     private var deepConsentCard: some View {
         Toggle(isOn: Binding(
             get: { scanViewModel.hasDeepConsent },
-            set: { scanViewModel.hasDeepConsent = $0 }
+            set: {
+                Haptics.selection()
+                scanViewModel.hasDeepConsent = $0
+            }
         )) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text("Caption my photos with AI")
@@ -229,10 +236,12 @@ struct PersonaPickerView: View {
     }
 
     private func tappedMonthChip() {
+        Haptics.tap()
         showMonthPicker = true
     }
 
     private func tappedAlbumChip() {
+        Haptics.tap()
         albumPickerData = AlbumPickerData(
             albums: scanViewModel.fetchAlbums(),
             isLimitedAccess: scanViewModel.isLimitedPhotoAccess
@@ -377,6 +386,7 @@ private struct MonthPickerSheet: View {
                 Spacer()
 
                 Button("Use \(monthLabel)") {
+                    Haptics.tap()
                     onSelect(scope)
                     dismiss()
                 }
@@ -448,6 +458,7 @@ private struct AlbumPickerSheet: View {
                 } else {
                     List(albums) { album in
                         Button {
+                            Haptics.selection()
                             onSelect(.album(identifier: album.id, name: album.title))
                             dismiss()
                         } label: {

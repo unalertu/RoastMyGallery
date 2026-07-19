@@ -39,6 +39,7 @@ struct HistoryView: View {
                 if !history.records.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
+                            Haptics.tap()
                             showFilterSheet = true
                         } label: {
                             Image(systemName: isFilterActive
@@ -119,6 +120,7 @@ struct HistoryView: View {
                 message: "Nothing in your history fits these filters."
             )
             Button("Clear filters") {
+                Haptics.tap()
                 kindFilterRaw = historyFilterAll
                 personaFilterRaw = historyFilterAll
             }
@@ -275,6 +277,7 @@ private struct HistoryFilterSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Reset") {
+                        Haptics.tap()
                         sortOrderRaw = HistorySortOrder.newestFirst.rawValue
                         kindFilterRaw = historyFilterAll
                         personaFilterRaw = historyFilterAll
@@ -317,7 +320,10 @@ private struct HistoryFilterSheet: View {
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            Haptics.selection()
+            action()
+        } label: {
             Group {
                 if let systemImage {
                     Label(title, systemImage: systemImage)

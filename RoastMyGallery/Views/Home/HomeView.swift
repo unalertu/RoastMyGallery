@@ -89,6 +89,7 @@ struct HomeView: View {
     private func start(_ kind: AnalysisKind) {
         // Not open yet — the card is non-tappable, but guard anyway.
         guard !kind.isComingSoon else { return }
+        Haptics.primary()
         if scanViewModel.isRunActive {
             scanViewModel.presentFlow()
             return
@@ -117,13 +118,20 @@ struct HomeView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Roast My Gallery")
-                    .font(Theme.Typography.display)
-                Text(history.latest.map { "Last analyzed \($0.createdAt.formatted(.relative(presentation: .named)))" }
-                     ?? "Your camera roll has opinions about you")
-                    .font(Theme.Typography.caption)
-                    .foregroundStyle(Theme.Colors.textSecondary)
+            HStack(alignment: .center, spacing: Theme.Spacing.s) {
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Roast My Gallery")
+                        .font(Theme.Typography.display)
+                    Text(history.latest.map { "Last analyzed \($0.createdAt.formatted(.relative(presentation: .named)))" }
+                         ?? "Your camera roll has opinions about you")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
             }
             Spacer(minLength: Theme.Spacing.m)
             gemPill
@@ -133,7 +141,10 @@ struct HomeView: View {
 
     /// Compact, always-visible gem balance. Tapping opens the gem store.
     private var gemPill: some View {
-        Button { showPaywall = true } label: {
+        Button {
+            Haptics.tap()
+            showPaywall = true
+        } label: {
             HStack(spacing: Theme.Spacing.xs) {
                 Image(systemName: "diamond.fill")
                     .font(.system(size: 12, weight: .medium))
@@ -325,7 +336,10 @@ struct HomeView: View {
     }
 
     private func shareShortcut(_ record: AnalysisRecord) -> some View {
-        Button { renderShareCards(for: record) } label: {
+        Button {
+            Haptics.tap()
+            renderShareCards(for: record)
+        } label: {
             HStack(spacing: Theme.Spacing.xs) {
                 if isPreparingShareCards {
                     ProgressView()
@@ -386,6 +400,7 @@ struct HomeView: View {
 
             if teaserFacts.count > 1 {
                 Button {
+                    Haptics.tap()
                     withAnimation(Theme.motion) { shuffleTeaser() }
                 } label: {
                     Image(systemName: "arrow.triangle.2.circlepath")

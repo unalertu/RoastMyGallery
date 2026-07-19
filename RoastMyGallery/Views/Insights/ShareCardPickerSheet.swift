@@ -120,6 +120,9 @@ struct ShareCardPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Theme.Colors.background, for: .navigationBar)
         }
+        // One place catches both ways of switching styles — chip tap and
+        // pager swipe.
+        .onChange(of: selectedID) { _, _ in Haptics.selection() }
     }
 
     /// Single-image cards preview as-is; the Full Story set gets its own inner

@@ -157,9 +157,13 @@ struct PurchaseSuccessView: View {
             ringOpacity = 1.0
         }
 
-        // Step 2: Checkmark pops in (0.6s)
+        // Step 2: Checkmark pops in (0.6s), with the success haptic landing
+        // on the pop — the tactile counterpart of the visual beat.
         withAnimation(.spring(response: 0.6, dampingFraction: 0.55).delay(0.6)) {
             showCheckmark = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            Haptics.success()
         }
 
         // Step 3: Confetti burst (0.9s)
@@ -188,6 +192,7 @@ struct PurchaseSuccessView: View {
     // MARK: - Exit animation
 
     private func runExit() {
+        Haptics.tap()
         isDismissing = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
             onDismiss()

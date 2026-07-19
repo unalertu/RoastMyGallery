@@ -53,27 +53,44 @@ function restConfig() {
  *                  if idempotency didn't exist.
  */
 export async function claimCharge(endpoint, appUserId, runId) {
+  // Upstash REST single-command form: SET ... NX EX <ttl> → { result: "OK" }
+  // when the key was set, { result: null } when it already existed.
+  return claim(`charge:${endpoint}:${appUserId}:${runId}`, CLAIM_TTL_SECONDS);
+}
+
+/**
+ * Like `claimCharge`, but PERMANENT — no TTL. For one-time-per-user grants
+ * (the starter grant), where "once" means forever, not once per 48 hours.
+ * Same return contract as `claimCharge`.
+ */
+export async function claimOnce(endpoint, appUserId, marker) {
+  return claim(`once:${endpoint}:${appUserId}:${marker}`, null);
+}
+
+/**
+ * Best-effort release of a claim taken by `claimOnce`, for when the action
+ * the claim guards failed after the claim was taken — without this, a failed
+ * grant would permanently block the user's retry. Failures are logged only:
+ * a stuck claim is the safe direction (no double grant).
+ */
+export async function releaseOnce(endpoint, appUserId, marker) {
+  const config = restConfig();
+  if (!config) return;
+  const response = await sendCommand(config, ["DEL", `once:${endpoint}:${appUserId}:${marker}`]);
+  if (!response?.ok) {
+    console.error(`Failed to release claim once:${endpoint}:${appUserId}:${marker}.`);
+  }
+}
+
+async function claim(key, ttlSeconds) {
   const config = restConfig();
   if (!config) return "unknown";
 
-  const key = `charge:${endpoint}:${appUserId}:${runId}`;
-  let response;
-  try {
-    // Upstash REST single-command form: POST / with the command as a JSON
-    // array. SET ... NX EX <ttl> → { result: "OK" } when the key was set,
-    // { result: null } when it already existed.
-    response = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.token}`,
-      },
-      body: JSON.stringify(["SET", key, "1", "NX", "EX", String(CLAIM_TTL_SECONDS)]),
-    });
-  } catch (error) {
-    console.error("Idempotency store unreachable:", error);
-    return "unknown";
-  }
+  const command = ["SET", key, "1", "NX"];
+  if (ttlSeconds != null) command.push("EX", String(ttlSeconds));
+
+  const response = await sendCommand(config, command);
+  if (!response) return "unknown";
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -86,5 +103,22 @@ export async function claimCharge(endpoint, appUserId, runId) {
     return data.result === "OK" ? "claimed" : "duplicate";
   } catch {
     return "unknown";
+  }
+}
+
+/** One Upstash REST command; null when the store was unreachable. */
+async function sendCommand(config, command) {
+  try {
+    return await fetch(config.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.token}`,
+      },
+      body: JSON.stringify(command),
+    });
+  } catch (error) {
+    console.error("Idempotency store unreachable:", error);
+    return null;
   }
 }

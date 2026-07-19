@@ -6,16 +6,17 @@
 // credits from purchases, so non-purchase "welcome" credits must be issued as a
 // positive adjustment through the Developer API (secret key, server-side only).
 //
-// IDEMPOTENCY — IMPORTANT:
-// This scaffold trusts the client to call at most once (it sets a local
-// UserDefaults flag). That is NOT sufficient for production: a reinstall or a
-// crafted request could re-grant. Before shipping, make this definitive
-// server-side — e.g. GET the customer's virtual-currency transactions and skip
-// if a prior starter grant exists, or record granted App User IDs in a small
-// KV store (Upstash/Vercel KV). Marked as a hardening TODO.
+// IDEMPOTENCY:
+// One grant per App User ID, ever, enforced server-side via a permanent
+// `claimOnce` marker in the same KV store the paid endpoints use for charge
+// idempotency (see lib/idempotency.js). The client's local UserDefaults flag
+// is just politeness; this claim is what stops a reinstall or a crafted
+// request from re-granting. Fail-open when the KV env vars are unset — until
+// then the endpoint behaves like the old client-trusting scaffold.
 
 import { grantCredits, CREDIT_COSTS } from "../lib/revenuecat.js";
 import { checkAppSecret, clientIP, allowRequest } from "../lib/guard.js";
+import { claimOnce, releaseOnce } from "../lib/idempotency.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -37,9 +38,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Field "appUserId" is required.' });
   }
 
-  // TODO (hardening): dedupe server-side before granting — see file header.
+  // Claim BEFORE granting so concurrent duplicates can't both grant; if the
+  // grant then fails, release the claim so the client's next-launch retry
+  // isn't permanently locked out of its starter credits.
+  const claim = await claimOnce("starter-grant", appUserId, "v1");
+  if (claim === "duplicate") {
+    return res.status(200).json({ ok: true, granted: false });
+  }
+
   const result = await grantCredits(appUserId, CREDIT_COSTS.starter);
   if (!result.ok) {
+    if (claim === "claimed") {
+      await releaseOnce("starter-grant", appUserId, "v1");
+    }
     return res.status(502).json({ error: "Could not grant starter credits." });
   }
 

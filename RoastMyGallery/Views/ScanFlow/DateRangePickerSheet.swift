@@ -61,12 +61,16 @@ struct DateRangePickerSheet: View {
                 Spacer()
 
                 if monthCount > Self.maxMonths {
-                    Button("Trim to 12 months") { trimToLimit() }
+                    Button("Trim to 12 months") {
+                        Haptics.tap()
+                        trimToLimit()
+                    }
                         .font(Theme.Typography.headline)
                         .foregroundStyle(Theme.Colors.accent)
                 }
 
                 Button(confirmTitle) {
+                    Haptics.tap()
                     onSelect(scope)
                     dismiss()
                 }

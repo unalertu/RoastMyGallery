@@ -31,6 +31,18 @@ struct AnalysisStatusBanner: View {
             }
         }
         .animation(Theme.motion, value: [scanState, deepVisionState])
+        // Runs finishing while minimized only surface here (the flow views
+        // are unmounted), so the completion haptic fires off the chip state.
+        .onChange(of: scanState) { _, newState in notifyOutcome(newState) }
+        .onChange(of: deepVisionState) { _, newState in notifyOutcome(newState) }
+    }
+
+    private func notifyOutcome(_ state: ChipState?) {
+        switch state {
+        case .ready: Haptics.success()
+        case .failed: Haptics.error()
+        default: break
+        }
     }
 
     // MARK: - State
@@ -151,7 +163,10 @@ struct AnalysisStatusBanner: View {
         @ViewBuilder content: () -> some View
     ) -> some View {
         HStack(spacing: Theme.Spacing.s) {
-            Button(action: action) {
+            Button {
+                Haptics.tap()
+                action()
+            } label: {
                 HStack(spacing: Theme.Spacing.m) {
                     content()
                     Spacer(minLength: dismiss == nil ? Theme.Spacing.s : 0)
@@ -167,7 +182,10 @@ struct AnalysisStatusBanner: View {
 
             if let dismiss {
                 Spacer(minLength: 0)
-                Button(action: dismiss) {
+                Button {
+                    Haptics.tap()
+                    dismiss()
+                } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.Colors.textSecondary)

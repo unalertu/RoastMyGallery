@@ -182,6 +182,7 @@ struct InsightView: View {
             .disabled(true)
         } else if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
             Button {
+                Haptics.primary()
                 // Persona + stats inherited from this analysis; the flow is
                 // presented by RootView's cover (over the whole tab shell),
                 // so the run survives this screen going away.
@@ -192,6 +193,7 @@ struct InsightView: View {
             .buttonStyle(SoftButtonStyle())
         } else {
             Button {
+                Haptics.warning()
                 paywallContext = .deepVision(have: purchaseManager.gemBalance)
                 showPaywall = true
             } label: {
@@ -223,10 +225,12 @@ struct InsightView: View {
         // Client-side affordability check is UX only; the backend is the
         // authoritative gate (deduct-after-success), same as a normal analysis.
         guard purchaseManager.canAfford(cost) else {
+            Haptics.warning()
             paywallContext = .analysis(cost: cost, have: purchaseManager.gemBalance)
             showPaywall = true
             return
         }
+        Haptics.primary()
         scanViewModel.regenerate(from: record, appUserID: purchaseManager.appUserID)
         // Inside the scan flow the shared view model already drives this
         // screen; from Home/History we present the flow (RootView's cover,
@@ -241,6 +245,7 @@ struct InsightView: View {
     private func renderShareCards() {
         // Share cards are unlimited in the gem model — no gating here.
         guard !isPreparingShareCards else { return }
+        Haptics.tap()
         isPreparingShareCards = true
         Task { @MainActor in
             defer { isPreparingShareCards = false }

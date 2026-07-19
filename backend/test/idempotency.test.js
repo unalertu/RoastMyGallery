@@ -25,6 +25,7 @@ process.env.REVENUECAT_PROJECT_ID = "test-project";
 const { claimCharge } = await import("../lib/idempotency.js");
 const insightHandler = (await import("../api/insight.js")).default;
 const deepVisionHandler = (await import("../api/deep-vision.js")).default;
+const starterGrantHandler = (await import("../api/starter-grant.js")).default;
 
 // ---------------------------------------------------------------------------
 // Fake upstreams
@@ -61,8 +62,12 @@ globalThis.fetch = async (url, options = {}) => {
   const href = typeof url === "string" ? url : url.href;
 
   if (href.startsWith(KV_URL)) {
-    // Single-command form: ["SET", key, "1", "NX", "EX", ttl].
+    // Single-command form: ["SET", key, "1", "NX", ("EX", ttl)] or ["DEL", key].
     const [command, key] = JSON.parse(options.body);
+    if (command === "DEL") {
+      kvStore.delete(key);
+      return json({ result: 1 });
+    }
     assert.equal(command, "SET");
     if (kvStore.has(key)) return json({ result: null });
     kvStore.set(key, "1");
@@ -242,6 +247,28 @@ test("deep-vision: an insight run and a deep-vision run may share a runId", asyn
   await call(insightHandler, insightBody("user-i", "run-1"));
   await call(deepVisionHandler, visionBody("user-i", "run-1"));
   assert.equal(spends.get("user-i"), 2);
+});
+
+// ---------------------------------------------------------------------------
+// /api/starter-grant — one-time welcome credits, permanent server-side dedupe
+
+test("starter-grant: grants once, then refuses repeats for the same user", async () => {
+  const first = await call(starterGrantHandler, { appUserId: "user-s" });
+  assert.equal(first.statusCode, 200);
+  assert.equal(first.body.granted, true);
+
+  // Reinstall / crafted repeat: no second RevenueCat transaction, ever.
+  const repeat = await call(starterGrantHandler, { appUserId: "user-s" });
+  assert.equal(repeat.statusCode, 200);
+  assert.equal(repeat.body.granted, false);
+  assert.equal(spends.get("user-s"), 1);
+});
+
+test("starter-grant: different users each get their own grant", async () => {
+  await call(starterGrantHandler, { appUserId: "user-t" });
+  await call(starterGrantHandler, { appUserId: "user-u" });
+  assert.equal(spends.get("user-t"), 1);
+  assert.equal(spends.get("user-u"), 1);
 });
 
 // ---------------------------------------------------------------------------

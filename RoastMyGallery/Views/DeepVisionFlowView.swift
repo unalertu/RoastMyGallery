@@ -58,6 +58,7 @@ struct DeepVisionFlowView: View {
                         // working behind the status banner. Cancel lives on
                         // the progress screens themselves.
                         Button {
+                            Haptics.tap()
                             runner.minimizeFlow()
                         } label: {
                             Image(systemName: "chevron.down")
@@ -80,8 +81,16 @@ struct DeepVisionFlowView: View {
         }
         // The backend's authoritative insufficient-gems rejection also
         // routes to the paywall, same as the pre-flight UX gate.
-        .onChange(of: runner.errorMessage) { _, _ in
-            if runner.failureWasInsufficientGems { showPaywall = true }
+        .onChange(of: runner.errorMessage) { _, newError in
+            if runner.failureWasInsufficientGems {
+                Haptics.warning()
+                showPaywall = true
+            } else if newError != nil {
+                Haptics.error()
+            }
+        }
+        .onChange(of: runner.phase) { _, newPhase in
+            if case .finished = newPhase { Haptics.success() }
         }
     }
 
@@ -103,6 +112,7 @@ struct DeepVisionFlowView: View {
             HStack(spacing: Theme.Spacing.m) {
                 ForEach(Persona.allCases) { option in
                     Button {
+                        Haptics.selection()
                         withAnimation(Theme.motion) { runner.persona = option }
                     } label: {
                         VStack(spacing: Theme.Spacing.s) {
@@ -187,6 +197,7 @@ struct DeepVisionFlowView: View {
             .tint(Theme.Colors.accent)
             .themedCard()
             .disabled(runner.selection.isEmpty)
+            .onChange(of: hasConsented) { _, _ in Haptics.selection() }
 
             Spacer()
 
@@ -212,9 +223,11 @@ struct DeepVisionFlowView: View {
         // UX-only affordability re-check (the balance may have changed since
         // the flow opened); the backend/RevenueCat is the real authority.
         guard purchaseManager.canAfford(PurchaseManager.deepVisionCost) else {
+            Haptics.warning()
             showPaywall = true
             return
         }
+        Haptics.primary()
         runner.submit(appUserID: purchaseManager.appUserID)
     }
 
@@ -286,10 +299,16 @@ struct DeepVisionFlowView: View {
     /// cancelling the quiet escape hatch.
     private var backgroundOrCancelButtons: some View {
         VStack(spacing: Theme.Spacing.s) {
-            Button("Continue in Background") { runner.minimizeFlow() }
-                .buttonStyle(SoftButtonStyle())
-            Button("Cancel") { runner.cancelRun() }
-                .buttonStyle(QuietButtonStyle())
+            Button("Continue in Background") {
+                Haptics.tap()
+                runner.minimizeFlow()
+            }
+            .buttonStyle(SoftButtonStyle())
+            Button("Cancel") {
+                Haptics.tap()
+                runner.cancelRun()
+            }
+            .buttonStyle(QuietButtonStyle())
         }
     }
 

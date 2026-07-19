@@ -1,5 +1,4 @@
 import SwiftUI
-import StoreKit
 import UIKit
 
 /// Tab 3 — Plan, Preferences, Data, About, Privacy. Custom pastel sections
@@ -8,7 +7,6 @@ struct SettingsView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(AnalysisHistoryStore.self) private var history
     @Environment(\.openURL) private var openURL
-    @Environment(\.requestReview) private var requestReview
 
     @State private var showPaywall = false
     @State private var showDeleteConfirmation = false
@@ -52,6 +50,7 @@ struct SettingsView: View {
             titleVisibility: .visible
         ) {
             Button("Delete All History", role: .destructive) {
+                Haptics.warning()
                 history.deleteAll()
             }
             Button("Cancel", role: .cancel) {}
@@ -69,6 +68,7 @@ struct SettingsView: View {
             Text("To get a weekly re-scan reminder, turn on notifications for Roast My Gallery in iOS Settings.")
         }
         .onChange(of: monthlyReminderEnabled) { _, enabled in
+            Haptics.selection()
             if enabled {
                 Task {
                     let result = await ReminderScheduler.enableReminder()
@@ -92,7 +92,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Gems")
                         .font(Theme.Typography.headline)
-                    Text("\(PurchaseManager.analysisCost) gem per analysis · \(PurchaseManager.deepVisionCost) per Deep Vision batch")
+                    Text("\(PurchaseManager.analysisCost) gem per analysis · \(PurchaseManager.deepAnalysisCost) per Deep Analysis")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
@@ -110,8 +110,11 @@ struct SettingsView: View {
             }
 
             Divider().overlay(Theme.Colors.background)
-            Button("Get gems") { showPaywall = true }
-                .buttonStyle(SoftButtonStyle())
+            Button("Get gems") {
+                Haptics.tap()
+                showPaywall = true
+            }
+            .buttonStyle(SoftButtonStyle())
         }
     }
 
@@ -227,6 +230,7 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
+                Haptics.tap()
                 showDeleteConfirmation = true
             } label: {
                 SettingsRowLabel(
@@ -268,13 +272,15 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
-                // System review prompt. Apple rate-limits how often this
-                // actually appears (a few times per year), so tapping may show
-                // nothing — that's expected, not a bug.
-                // TODO: once the app is published, add the real App Store ID so
-                // we can offer an "open App Store to review" fallback for users
-                // who've already used up their prompt quota.
-                requestReview()
+                // Deliberately NOT `requestReview()` here: Apple throttles the
+                // in-app sheet (~3/year) and silently shows nothing beyond
+                // that, which makes a tapped button feel broken. An explicit
+                // tap deep-links straight to the App Store review form
+                // instead — always works. The automatic in-app ask lives in
+                // ReviewPrompter/ScanFlowView.
+                if let url = URL(string: "\(Self.appStoreURL)?action=write-review") {
+                    openURL(url)
+                }
             } label: {
                 SettingsRowLabel(icon: "star", title: "Rate this app", detail: nil)
             }
@@ -289,8 +295,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .sheet(isPresented: $showShareSheet) {
-                // TODO: Replace with the real App Store URL once published.
-                let appURL = URL(string: "https://apps.apple.com/app/roast-my-gallery/id0000000000")!
+                let appURL = URL(string: Self.appStoreURL)!
                 ShareSheet(items: [
                     "Check out Roast My Gallery — it hilariously roasts your camera roll! 📸🔥",
                     appURL
@@ -329,6 +334,9 @@ struct SettingsView: View {
     }
 
     // MARK: - URLs
+    /// App Store product page (Apple ID 6791121107) — used by both the
+    /// share sheet and, with `?action=write-review`, the Rate button.
+    private static let appStoreURL = "https://apps.apple.com/app/roast-my-gallery/id6791121107"
     private static let privacyPolicyURL = "https://roastmygallery.unlertu.workers.dev/privacy/"
     private static let termsOfUseURL = "https://roastmygallery.unlertu.workers.dev/terms/"
 }

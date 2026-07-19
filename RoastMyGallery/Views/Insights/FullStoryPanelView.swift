@@ -124,13 +124,13 @@ struct FullStoryPanelView: View {
         }
     }
 
-    /// Tiny three-dot mark echoing the app icon (same as the editorial card).
+    /// Tiny app-icon mark (same as the editorial card).
     private var logoMark: some View {
-        HStack(spacing: 3) {
-            Circle().fill(Theme.Colors.accent).frame(width: 7, height: 7)
-            Circle().fill(Theme.Colors.sage).frame(width: 7, height: 7)
-            Circle().fill(Theme.Colors.powderBlue).frame(width: 7, height: 7)
-        }
+        Image("AppLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 18, height: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 
     private var footer: some View {

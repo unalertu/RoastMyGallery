@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// The modal analysis flow, presented full-screen from `RootView` (off the
 /// shared `ScanViewModel.isFlowPresented`): permission (if needed) → persona
@@ -14,6 +15,7 @@ struct ScanFlowView: View {
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
 
     var body: some View {
         NavigationStack {
@@ -45,6 +47,7 @@ struct ScanFlowView: View {
                         // working and the status banner takes over. Explicit
                         // cancellation stays on the progress screen.
                         Button {
+                            Haptics.tap()
                             scanViewModel.minimizeFlow()
                         } label: {
                             Image(systemName: "chevron.down")
@@ -76,6 +79,26 @@ struct ScanFlowView: View {
             // Catch permission changes made in Settings while backgrounded.
             if newPhase == .active { scanViewModel.refreshPermissionPhase() }
         }
+        .onChange(of: scanViewModel.phase) { _, newPhase in
+            switch newPhase {
+            case .results:
+                Haptics.success()
+                // Automatic App Store rating ask, at the one genuine delight
+                // moment: fresh results on screen. ReviewPrompter gates it (≥2
+                // completed runs, once per version); the short delay lets the
+                // results screen settle before the system sheet appears.
+                if ReviewPrompter.shouldPromptNow() {
+                    Task {
+                        try? await Task.sleep(for: .seconds(2))
+                        requestReview()
+                    }
+                }
+            case .failed:
+                Haptics.error()
+            default:
+                break
+            }
+        }
         // Note: the gem spend is reflected by `ScanViewModel` the moment a
         // charged insight succeeds (see `reflectSpend`), so Home/Settings
         // update immediately. A cache re-open reaches `.results` without a
@@ -96,7 +119,10 @@ struct ScanFlowView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .multilineTextAlignment(.center)
             Spacer()
-            Button("Try Again") { scanViewModel.reset() }
+            Button("Try Again") {
+                Haptics.tap()
+                scanViewModel.reset()
+            }
                 .buttonStyle(PrimaryButtonStyle())
         }
         .padding(Theme.Spacing.l)

@@ -67,6 +67,7 @@ struct PermissionView: View {
                 .buttonStyle(PrimaryButtonStyle())
             } else {
                 Button("Allow Photo Access") {
+                    Haptics.primary()
                     Task { await scanViewModel.requestPermission() }
                 }
                 .buttonStyle(PrimaryButtonStyle())

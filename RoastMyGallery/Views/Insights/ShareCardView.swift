@@ -38,7 +38,14 @@ struct ShareCardView: View {
             HStack {
                 Text("\(stats.analyzedPhotos) photos analyzed")
                 Spacer()
-                Text("Roast My Gallery") // TODO: replace with logo + App Store badge
+                HStack(spacing: 6) {
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    Text("Roast My Gallery")
+                }
             }
             .font(.caption2)
             .foregroundStyle(.white.opacity(0.6))

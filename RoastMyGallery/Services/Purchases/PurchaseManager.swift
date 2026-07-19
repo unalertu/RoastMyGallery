@@ -41,8 +41,8 @@ final class PurchaseManager {
     /// Product identifiers — must match App Store Connect and the RevenueCat
     /// Offering. Both are one-time consumable gem packs.
     enum ProductID: String, CaseIterable {
-        case pack20 = "credits_pack_20"
-        case pack50 = "credits_pack_50"
+        case pack10 = "credits_pack_10"
+        case pack40 = "credits_pack_40"
         case pack120 = "credits_pack_120"
     }
 
@@ -68,8 +68,8 @@ final class PurchaseManager {
     /// these in sync with it.
     nonisolated static func advertisedGems(forProductID id: String) -> Int? {
         switch ProductID(rawValue: id) {
-        case .pack20: return 20
-        case .pack50: return 50
+        case .pack10: return 10
+        case .pack40: return 40
         case .pack120: return 120
         case nil: return nil
         }
@@ -236,28 +236,10 @@ final class PurchaseManager {
 
     /// Ask to Buy / deferred transactions: not a failure. The CustomerInfo
     /// stream applies the gems automatically once a parent approves — nothing
-    /// to do here but say so. One function on purpose, so the real catch in
-    /// `purchase(_:)` and the DEBUG simulator below can never drift apart.
+    /// to do here but say so.
     private func registerPendingPurchase() {
         lastError = "This purchase is waiting for approval. Your gems will be added automatically once it's approved."
     }
-
-    #if DEBUG
-    /// DEBUG-ONLY (compiled out of Release by this `#if DEBUG`): drives the
-    /// exact pending-purchase handling a real Ask to Buy hits — same handler
-    /// the `paymentPendingError` catch calls, same message, same `lastError`
-    /// surface on the paywall. Exists because Apple provides no sandbox
-    /// switch to trigger a real deferred transaction on demand.
-    ///
-    /// STRIP BEFORE SHIPPING: remove this and the paywall's `debugTools`
-    /// section (PaywallView.swift) — or at minimum re-confirm both are still
-    /// `#if DEBUG`-gated — before the final App Store archive.
-    func debugSimulatePaymentPending() {
-        // Mirror the state `purchase(_:)` resets before its catch runs.
-        lastPurchaseResult = nil
-        registerPendingPurchase()
-    }
-    #endif
 
     // MARK: - Grants (via our backend, which holds the secret key)
 

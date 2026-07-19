@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		042954D902F5FA08E8698AF8 /* ReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475EB13493F77AD19EBAB096 /* ReminderScheduler.swift */; };
+		04B03DFD6275D287BE472B03 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0E52688E18AD01FFE3F442 /* Haptics.swift */; };
 		0A54DB53AE8AE169D8C8C601 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC51CF74C294DFECB3D18E /* SettingsView.swift */; };
 		111E9016FE9EC2FA036869A6 /* ShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D33D9C0CDFF6EF1183BD8F /* ShareCardView.swift */; };
 		153B798BBD3DC1A2F8C49E07 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DA3232E5AA76E4B1C6A6618 /* HistoryView.swift */; };
@@ -20,6 +21,7 @@
 		3AC6BF786463F24E9F67E694 /* DeepVisionFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660E80DE75CEF7CBE7B627CF /* DeepVisionFlowView.swift */; };
 		42D833FEE4D016A3B745D9AC /* PhotoLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9263E57E4AAA869EB78BAA4C /* PhotoLibraryService.swift */; };
 		445153E8930D59484744570B /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC595653DC4ED2268014D16F /* AppConfig.swift */; };
+		45E7068DF9FD48612E29BD36 /* ReviewPrompter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 425125BF0EBCFC8DAD667782 /* ReviewPrompter.swift */; };
 		47C84498F7E3AE917B52D95C /* AnalysisHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494FBA1DB7DA531D0AA91B80 /* AnalysisHistoryStore.swift */; };
 		4D69B1B106491B69183DCBD5 /* GemBackendClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AF857427290BFC9BA44ECB /* GemBackendClient.swift */; };
 		53CF77B091994CBDDCC66734 /* AnalysisDepth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381C645A336F7B14DEC352F8 /* AnalysisDepth.swift */; };
@@ -84,11 +86,12 @@
 		3FD104398720975570F40CE4 /* CategoryVocabulary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryVocabulary.swift; sourceTree = "<group>"; };
 		40CD7AC7BE197D85E5A13174 /* ShareCardDebug.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardDebug.swift; sourceTree = "<group>"; };
 		41B98FCAC8578BC7482C18F0 /* KeychainAppUserID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAppUserID.swift; sourceTree = "<group>"; };
+		425125BF0EBCFC8DAD667782 /* ReviewPrompter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewPrompter.swift; sourceTree = "<group>"; };
 		475EB13493F77AD19EBAB096 /* ReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderScheduler.swift; sourceTree = "<group>"; };
 		488ECB643B7E303D3BD26771 /* AltShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AltShareCardView.swift; sourceTree = "<group>"; };
 		494FBA1DB7DA531D0AA91B80 /* AnalysisHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryStore.swift; sourceTree = "<group>"; };
 		504EBBFC8D04FB9AF897AAF6 /* PersonaPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPickerView.swift; sourceTree = "<group>"; };
-		522831B62BCA1A5546BAE48F /* RoastMyGallery.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RoastMyGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		522831B62BCA1A5546BAE48F /* RoastMyGallery.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RoastMyGallery.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53D33D9C0CDFF6EF1183BD8F /* ShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardView.swift; sourceTree = "<group>"; };
 		5A21EF81F47D2C2CDA30C99D /* ShareCardRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardRenderer.swift; sourceTree = "<group>"; };
 		5F9317777F1020AA47ED8885 /* PhotoCaptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCaptionService.swift; sourceTree = "<group>"; };
@@ -131,6 +134,7 @@
 		EA440A4424BA8873DF6FC01F /* AnalysisStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisStatusBanner.swift; sourceTree = "<group>"; };
 		F0932262E861310A370ED6FB /* AltShareCardRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AltShareCardRenderer.swift; sourceTree = "<group>"; };
 		F4AF857427290BFC9BA44ECB /* GemBackendClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemBackendClient.swift; sourceTree = "<group>"; };
+		FF0E52688E18AD01FFE3F442 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -222,6 +226,7 @@
 		6131A79D1DE15CCD6CA4D2EF /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				425125BF0EBCFC8DAD667782 /* ReviewPrompter.swift */,
 				449C59982BCFAE2FCEB36B9F /* Analysis */,
 				FAF42C228E29360FB231536C /* Insights */,
 				79FC64C9AFAF779703844AAF /* Notifications */,
@@ -307,6 +312,7 @@
 				CC595653DC4ED2268014D16F /* AppConfig.swift */,
 				B274EEF63DC04E59D165CE6A /* AppEnvironment.swift */,
 				AA3826898F90BEEA4A4BAA7E /* DesignSystem.swift */,
+				FF0E52688E18AD01FFE3F442 /* Haptics.swift */,
 				949DD5F88A3B3B9EE9AA84A7 /* RoastMyGalleryApp.swift */,
 			);
 			path = App;
@@ -412,6 +418,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					B16761870CE0B6CBC678D52C = {
+						DevelopmentTeam = J7L764Z34L;
+					};
+				};
 			};
 			buildConfigurationList = 2E571D00A92DEBF0888A8D70 /* Build configuration list for PBXProject "RoastMyGallery" */;
 			developmentRegion = en;
@@ -499,6 +510,7 @@
 				99B10B2E88F78C664196701D /* FullStoryRenderer.swift in Sources */,
 				EF7A25CCD9255CF5663F52BC /* GalleryStatsView.swift in Sources */,
 				4D69B1B106491B69183DCBD5 /* GemBackendClient.swift in Sources */,
+				04B03DFD6275D287BE472B03 /* Haptics.swift in Sources */,
 				153B798BBD3DC1A2F8C49E07 /* HistoryView.swift in Sources */,
 				F036C3744BBD9C650D925ED7 /* HomeView.swift in Sources */,
 				C9A8E79CE07A808BA2BE0257 /* ImageDownscaler.swift in Sources */,
@@ -519,6 +531,7 @@
 				30FA71D948D160D35108DEEB /* PurchaseManager.swift in Sources */,
 				C1F4E73BA1B445F260492809 /* PurchaseSuccessView.swift in Sources */,
 				042954D902F5FA08E8698AF8 /* ReminderScheduler.swift in Sources */,
+				45E7068DF9FD48612E29BD36 /* ReviewPrompter.swift in Sources */,
 				86FD3BA59A1F338FA0357C01 /* RoastMyGalleryApp.swift in Sources */,
 				6AC212CC8FEEC1DB0A8A8FCD /* RootView.swift in Sources */,
 				687631524D18BC6854119C19 /* ScanFlowView.swift in Sources */,
@@ -668,7 +681,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ertugrul.RoastMyGallery;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.10;
@@ -688,7 +701,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ertugrul.RoastMyGallery;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.10;
