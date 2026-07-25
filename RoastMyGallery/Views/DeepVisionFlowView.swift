@@ -165,15 +165,19 @@ struct DeepVisionFlowView: View {
             }
             .padding(.top, Theme.Spacing.l)
 
+            let selectionCount = runner.selection.count
+            let selectionEmpty = runner.selection.isEmpty
+            let batchSize = runner.maxBatchSize
+
             PhotosPicker(
                 selection: $runner.selection,
                 maxSelectionCount: runner.maxBatchSize,
                 matching: .images
             ) {
                 Label(
-                    runner.selection.isEmpty
+                    selectionEmpty
                         ? "Choose Photos"
-                        : "\(runner.selection.count) of \(runner.maxBatchSize) selected",
+                        : "\(selectionCount) of \(batchSize) selected",
                     systemImage: "photo.badge.plus"
                 )
                 .font(Theme.Typography.headline)

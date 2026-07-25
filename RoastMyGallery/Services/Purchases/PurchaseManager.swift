@@ -234,6 +234,27 @@ final class PurchaseManager {
         }
     }
 
+    // MARK: - Restore Purchases
+
+    /// Whether a restore operation is currently in flight.
+    private(set) var restoreInFlight = false
+
+    /// Re-syncs the user's purchase history with Apple / RevenueCat and
+    /// refreshes the gem balance. Required by App Store Review Guidelines.
+    func restorePurchases() async {
+        guard Purchases.isConfigured else { return }
+        restoreInFlight = true
+        defer { restoreInFlight = false }
+        lastError = nil
+        do {
+            _ = try await Purchases.shared.restorePurchases()
+            Purchases.shared.invalidateVirtualCurrenciesCache()
+            await refreshBalance()
+        } catch {
+            lastError = "Restore failed: \(error.localizedDescription)"
+        }
+    }
+
     /// Ask to Buy / deferred transactions: not a failure. The CustomerInfo
     /// stream applies the gems automatically once a parent approves — nothing
     /// to do here but say so.

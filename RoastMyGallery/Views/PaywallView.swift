@@ -31,6 +31,7 @@ struct PaywallView: View {
 
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var showSuccess = false
     @State private var successGems = 0
@@ -75,6 +76,9 @@ struct PaywallView: View {
                                 .foregroundStyle(Theme.Colors.danger)
                                 .multilineTextAlignment(.center)
                         }
+
+                        // MARK: - Footer (Restore + Legal links)
+                        legalFooter
                     }
                     .padding(Theme.Spacing.l)
                 }
@@ -237,6 +241,54 @@ struct PaywallView: View {
     private func gemFraming(gems: Int) -> String {
         let analyses = gems / PurchaseManager.analysisCost
         return "= \(analyses) \(analyses == 1 ? "analysis" : "analyses")"
+    }
+
+    // MARK: - Legal footer
+
+    /// Restore, Privacy, Terms — required by
+    /// App Store Review Guidelines for any in-app purchase screen.
+    private var legalFooter: some View {
+        HStack(spacing: Theme.Spacing.m) {
+            Button {
+                Task { await purchaseManager.restorePurchases() }
+            } label: {
+                if purchaseManager.restoreInFlight {
+                    ProgressView()
+                        .tint(Theme.Colors.textSecondary)
+                } else {
+                    Text("Restore")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+            }
+            .disabled(purchaseManager.restoreInFlight)
+
+            Text("·")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.textSecondary)
+
+            Button("Privacy") {
+                if let url = URL(string: "https://roastmygallery.unlertu.workers.dev/privacy/") {
+                    openURL(url)
+                }
+            }
+            .font(Theme.Typography.caption)
+            .foregroundStyle(Theme.Colors.textSecondary)
+
+            Text("·")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.textSecondary)
+
+            Button("Terms") {
+                if let url = URL(string: "https://roastmygallery.unlertu.workers.dev/terms/") {
+                    openURL(url)
+                }
+            }
+            .font(Theme.Typography.caption)
+            .foregroundStyle(Theme.Colors.textSecondary)
+        }
+        .padding(.top, Theme.Spacing.m)
+        .padding(.bottom, Theme.Spacing.l)
     }
 
 }
