@@ -153,6 +153,22 @@
       your entitlements and gem balance can be tracked. See <strong>Section 5</strong> for these
       providers.</p>
 
+      <p>Our backend also stores this identifier in a small key-value database
+      (<strong>Upstash</strong>) as part of two short markers used to keep billing honest:</p>
+
+      <ul>
+        <li>one recorded when your one-time welcome gems are issued, so they cannot be
+        claimed twice;</li>
+        <li>one recorded per analysis you run, so that if the app has to retry a request
+        (for example, your connection dropped while the result was coming back) you
+        are <strong>not charged twice for the same analysis</strong>.</li>
+      </ul>
+
+      <p>These markers hold only the identifier, the type of request, and a random run
+      number. They contain <strong>no photos, no generated text, no statistics, and no
+      personal details</strong> — the value stored is literally the digit <code>1</code>.
+      Retention is described in <strong>Section 7</strong>.</p>
+
       <h3>3.5 Technical/server information</h3>
 
       <p>When your device contacts our backend, our hosting provider (<strong>Vercel</strong>) and
@@ -218,6 +234,11 @@
               <td>Requests to our backend, including IP address and request metadata</td>
             </tr>
             <tr>
+              <td><strong>Upstash</strong></td>
+              <td>Key-value database used to prevent duplicate charges and duplicate welcome grants</td>
+              <td>Your random app-user identifier and a random run number — nothing else</td>
+            </tr>
+            <tr>
               <td><strong>Google (Gemini API)</strong></td>
               <td>AI text and image understanding</td>
               <td>The anonymous statistics summary and, for Deep Analysis, the downscaled images you approve</td>
@@ -245,6 +266,7 @@
         <li>Apple: <a href="https://www.apple.com/legal/privacy/" rel="noopener">apple.com/legal/privacy</a></li>
         <li>RevenueCat: <a href="https://www.revenuecat.com/privacy/" rel="noopener">revenuecat.com/privacy</a></li>
         <li>Vercel: <a href="https://vercel.com/legal/privacy-policy" rel="noopener">vercel.com/legal/privacy-policy</a></li>
+        <li>Upstash: <a href="https://upstash.com/trust/privacy.pdf" rel="noopener">upstash.com/trust/privacy</a></li>
         <li>Google (Gemini API): <a href="https://ai.google.dev/gemini-api/terms" rel="noopener">ai.google.dev/gemini-api/terms</a> and <a href="https://policies.google.com/privacy" rel="noopener">policies.google.com/privacy</a></li>
       </ul>
 
@@ -269,6 +291,11 @@
         backend as a personal profile.</li>
         <li><strong>Technical/security logs:</strong> retained only as long as needed for security
         and abuse prevention.</li>
+        <li><strong>Billing markers</strong> (Section 3.4): the per-analysis marker that stops a retry
+        being charged twice is deleted automatically after <strong>48 hours</strong>. The marker
+        recording that your one-time welcome gems were issued is kept <strong>indefinitely</strong>
+        — deleting it would let the same grant be claimed again, which is the whole
+        reason it exists. Both hold only identifiers, never content.</li>
         <li><strong>Purchase records:</strong> retained by Apple and RevenueCat as required to provide
         and account for purchases.</li>
         <li><strong>Local data (history/settings):</strong> stays on your device until you delete it
