@@ -29,4 +29,10 @@ enum AppConfig {
     /// a hunt through three views.
     static let privacyPolicyURL = URL(string: "https://roastmygallery.unlertu.workers.dev/privacy/")!
     static let termsOfUseURL = URL(string: "https://roastmygallery.unlertu.workers.dev/terms/")!
+
+    /// Support page — the same URL given to App Store Connect as the app's
+    /// Support URL. Settings → Contact & Feedback opens this rather than a
+    /// `mailto:` draft, so a user with no mail account configured still gets
+    /// somewhere useful (the page carries the FAQ *and* the contact address).
+    static let supportURL = URL(string: "https://roastmygallery.unlertu.workers.dev/support/")!
 }

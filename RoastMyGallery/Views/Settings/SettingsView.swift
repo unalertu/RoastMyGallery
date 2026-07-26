@@ -1,3 +1,4 @@
+import Photos
 import SwiftUI
 import UIKit
 
@@ -7,6 +8,14 @@ struct SettingsView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(AnalysisHistoryStore.self) private var history
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// Mirrors the system photo permission. Re-read whenever the app becomes
+    /// active, because the only way to change it is a round trip to iOS
+    /// Settings — granting or narrowing access there has to be reflected here
+    /// when the user comes back. (Revoking outright terminates the app, so
+    /// that case takes care of itself.)
+    @State private var photoAccess = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
     @State private var showPaywall = false
     @State private var showDeleteConfirmation = false
@@ -14,10 +23,6 @@ struct SettingsView: View {
 
     /// Shown when the user enables the reminder but notifications are off.
     @State private var showNotificationDeniedAlert = false
-
-    /// Set when a `mailto:` link can't open because the device has no mail
-    /// account configured.
-    @State private var mailUnavailable = false
 
     /// Drives the weekly reminder. Persisted so the row reflects the user's
     /// choice, but the actual scheduling happens in `.onChange` below via
@@ -47,6 +52,10 @@ struct SettingsView: View {
             .toolbarBackground(Theme.Colors.background, for: .navigationBar)
         }
         .tint(Theme.Colors.accent)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            photoAccess = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        }
         .sheet(isPresented: $showPaywall) { PaywallView() }
         .confirmationDialog(
             "Delete all analysis history?",
@@ -60,12 +69,6 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes every saved analysis from this device. It can't be undone.")
-        }
-        .alert("No mail app set up", isPresented: $mailUnavailable) {
-            Button("Copy Address") { UIPasteboard.general.string = SupportMail.address }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Email \(SupportMail.address) and we'll get back to you.")
         }
         .alert("Notifications are off", isPresented: $showNotificationDeniedAlert) {
             Button("Open Settings") {
@@ -141,6 +144,28 @@ struct SettingsView: View {
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineSpacing(3)
             }
+
+            Divider().overlay(Theme.Colors.background)
+
+            // Photo access is the one permission the app cannot work without,
+            // and the two failure modes are invisible from inside the app:
+            // `.limited` silently hides every album, and `.denied` makes each
+            // analysis fail at the last step. Surfacing the state here — with
+            // a jump to the iOS Settings page that changes it — turns both
+            // into something the user can see and fix.
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
+            } label: {
+                SettingsRowLabel(
+                    icon: photoAccess.iconName,
+                    title: "Photo Access",
+                    detail: photoAccess.settingsDetail,
+                    tint: photoAccess.needsAttention ? Theme.Colors.danger : Theme.Colors.textPrimary
+                )
+            }
+            .buttonStyle(.plain)
 
             Divider().overlay(Theme.Colors.background)
 
@@ -249,14 +274,18 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
-                guard let url = SupportMail.feedbackURL() else { return }
-                // No mail account = `mailto:` silently does nothing; show the
-                // address rather than leave a dead-looking row.
-                openURL(url) { opened in
-                    if !opened { mailUnavailable = true }
-                }
+                // The support page, not a `mailto:` draft: it answers the
+                // common questions (missing gems, new phone, refunds) before
+                // anyone needs to write in, and it still carries the address
+                // for those who do — including users with no mail account set
+                // up, for whom a `mailto:` row does nothing at all.
+                openURL(AppConfig.supportURL)
             } label: {
-                SettingsRowLabel(icon: "envelope", title: "Contact & Feedback", detail: nil)
+                SettingsRowLabel(
+                    icon: "lifepreserver",
+                    title: "Contact & Feedback",
+                    detail: "Help, common questions and our email"
+                )
             }
             .buttonStyle(.plain)
 
@@ -349,6 +378,47 @@ private struct SettingsRowLabel: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Photo permission presentation
+
+private extension PHAuthorizationStatus {
+    /// True when the current state stops the app doing its job, or quietly
+    /// narrows what it can see — the two cases worth colouring red.
+    var needsAttention: Bool {
+        switch self {
+        case .denied, .restricted, .limited: return true
+        default: return false
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .authorized: return "photo.on.rectangle"
+        case .limited: return "photo.badge.exclamationmark"
+        case .denied, .restricted: return "exclamationmark.triangle"
+        default: return "photo.on.rectangle"
+        }
+    }
+
+    /// Says what the current state *costs the user*, not just what it is —
+    /// "Limited" on its own doesn't explain why their albums vanished.
+    var settingsDetail: String {
+        switch self {
+        case .authorized:
+            return "Full access — albums and your whole library can be analyzed"
+        case .limited:
+            return "Limited — only the photos you picked. Albums stay hidden; tap to allow Full Access"
+        case .denied:
+            return "Off — analyses can't run. Tap to turn photo access back on"
+        case .restricted:
+            return "Blocked by this device's restrictions (Screen Time or a profile)"
+        case .notDetermined:
+            return "Not set yet — you'll be asked when you run your first analysis"
+        @unknown default:
+            return "Tap to review photo access in iOS Settings"
         }
     }
 }

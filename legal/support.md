@@ -5,9 +5,9 @@ Need help with **Roast My Gallery**? Email us and we'll get back to you.
 **[roastmygallery@gmail.com](mailto:roastmygallery@gmail.com)**
 
 We read every message and aim to reply within a few business days. It helps if
-you include your **app version** (Settings → About → Version) and your **iOS
-version** — the "Contact & Feedback" row in the app fills both in for you
-automatically.
+you include your **app version** — you'll find it in the app under
+Settings → About → Version — along with your **iOS version** and a short
+description of what you were doing when it happened.
 
 ---
 

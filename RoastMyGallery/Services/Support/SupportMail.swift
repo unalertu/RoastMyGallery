@@ -22,21 +22,6 @@ enum SupportMail {
         return "\(version) (\(build))"
     }
 
-    /// General feedback, pre-filled with the context we'd otherwise have to
-    /// ask for in a reply.
-    static func feedbackURL() -> URL? {
-        url(
-            subject: "Roast My Gallery feedback",
-            body: """
-
-
-            —
-            Please write your feedback above this line.
-            \(environmentFooter)
-            """
-        )
-    }
-
     /// Report one AI-written analysis as offensive or otherwise inappropriate.
     ///
     /// App Store Review Guideline 1.2 asks any app that generates content for a
