@@ -15,7 +15,8 @@ bir "roast" ya da yumuşak bir analiz metni yazdırıyor, paylaşılabilir kart
 
 - **Monetizasyon:** RevenueCat Virtual Currency ("gems"). 3 tüketilebilir paket
   (`credits_pack_10/40/120`). 1 gem = Standard analiz, 5 gem = Deep analiz.
-  İlk açılışta 3 bedava gem.
+  İlk açılışta **6** bedava gem — bilerek `deep + standard` toplamı, böylece
+  yeni kullanıcı (ve reviewer) her iki katmanı da parasız deneyebiliyor.
 - **Backend:** `backend/` — Vercel serverless, Gemini'yi sarmalıyor. Testler:
   `cd backend && npm test` (şu an 12/12).
 - **Web sitesi:** `roastmygallery.unlertu.workers.dev` — assets-only Cloudflare
@@ -98,6 +99,21 @@ kendiyle çelişiyordu. Hem `legal/*.md`'de hem canlıda tamamlandı.
 - [ ] **Vercel env var'ları:** `REVENUECAT_SECRET_KEY` + `REVENUECAT_PROJECT_ID`
       var mı? Yoksa kimse gem alamaz, reviewer dahil. `GEMINI_API_KEY` ve
       `APP_SHARED_SECRET` de kontrol et.
+- [ ] 🔴 **`KV_REST_API_URL` + `KV_REST_API_TOKEN`** (ya da `UPSTASH_REDIS_REST_*`).
+      **Starter grant'in tekrar alınmasını engelleyen tek şey bu.** Zincir:
+      `didRequestStarterGrant` UserDefaults'ta → uygulama silinince uçuyor →
+      client tekrar istiyor. `rmg_` kimliği Keychain'de kaldığı için aynı
+      kullanıcı olarak gidiyor, ve onu durduracak olan backend'deki kalıcı
+      `claimOnce` işareti. Ama `claimOnce` KV yoksa `"unknown"` dönüyor
+      ([idempotency.js:87](backend/lib/idempotency.js#L87)) ve
+      [starter-grant.js:54](backend/api/starter-grant.js#L54) sadece
+      `"duplicate"`'te duruyor → **grant tekrar veriliyor.**
+      Yani KV set değilken: sil → kur → **+6 gem, sınırsız.** Starter 3'ten 6'ya
+      çıktığı için artık her döngü bedava bir Deep analiz demek (en pahalı
+      çağrın: güçlü model + 12'ye kadar görsel).
+      Kapatınca geriye sadece "Erase All Content" / iCloud Keychain kapalı
+      senaryosu kalıyor — tam cihaz sıfırlama maliyeti farming'i pratik olmaktan
+      çıkarıyor.
 - [ ] Gemini API anahtarına **API kısıtlaması** koy (sadece Generative Language
       API) — anahtar rotate edilmeyecek, bu riski küçültür.
 - [x] ~~Handoff dosyasını siteyi kuran Claude sohbetine gönder~~ — **gerek
@@ -140,15 +156,17 @@ AI-written "roast" or a gentler analysis of their photo habits.
 NO ACCOUNT — the app has no login, so no demo account is needed.
 
 HOW TO TEST
-1. On first launch the app grants 3 free gems automatically — enough for two
-   Standard analyses. No purchase is required to review the app.
+1. On first launch the app grants 6 free gems automatically. That is enough to
+   run BOTH tiers without paying: one Deep analysis (5 gems) and one Standard
+   analysis (1 gem). No purchase is required to review any part of the app.
 2. Home > "New Analysis" > Standard (1 gem). Pick a month or album that CONTAINS
    PHOTOS, pick a voice (Roast or Analyst), then tap Analyze My Photos.
 3. The result screen shows the generated story, a share card, and a
    "Report this analysis" link for reporting generated content.
-4. Deep (5 gems) covers a date range. Before any photo is uploaded for captions,
-   the app shows the exact photos involved and the user approves, trims, or
-   declines that batch.
+4. Deep (5 gems) covers a date range and is fully reachable on the free gems.
+   Turn on "Caption my photos with AI" to see the consent screen: before any
+   photo is uploaded, the app shows the exact photos involved and you can
+   approve them, remove individual photos, or decline the batch entirely.
 
 NOTE ON THE TEST DEVICE: photo library access is required for the app's core
 function. If the review device has few photos, please choose a month that

@@ -171,19 +171,22 @@ struct HomeView: View {
             Text("New Analysis")
                 .font(Theme.Typography.headline)
 
-            ScrollView(.horizontal) {
-                HStack(spacing: Theme.Spacing.m) {
-                    ForEach(AnalysisKind.launchable) { kind in
-                        productCard(kind)
-                    }
+            // Both tiers on screen at once, no scrolling. A carousel put Deep
+            // half off the right edge, which is a poor place for the tier the
+            // user is meant to discover — it was the on-screen half of why
+            // Deep read as an afterthought.
+            //
+            // ASSUMES EXACTLY TWO CARDS. `AnalysisKind.launchable` is
+            // [.standard, .deep] today; if hand-picked is ever added back,
+            // three of these won't fit a phone width and this needs to become
+            // a two-column grid (or the carousel comes back).
+            HStack(alignment: .top, spacing: Theme.Spacing.s) {
+                ForEach(AnalysisKind.launchable) { kind in
+                    productCard(kind)
                 }
-                // Bleed to the screen edges while cards still align with the
-                // page margin; vertical breathing room keeps shadows unclipped.
-                .padding(.horizontal, Theme.Spacing.l)
-                .padding(.vertical, Theme.Spacing.s)
             }
-            .scrollIndicators(.hidden)
-            .padding(.horizontal, -Theme.Spacing.l)
+            // Keeps the soft shadows from being clipped by the scroll view.
+            .padding(.vertical, Theme.Spacing.xs)
         }
     }
 
@@ -210,7 +213,15 @@ struct HomeView: View {
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .multilineTextAlignment(.leading)
-                    .lineLimit(3, reservesSpace: true)
+                    .lineSpacing(1)
+                    // Half a phone width leaves ~96pt of text on the narrowest
+                    // device, so four lines is the honest budget. `reservesSpace`
+                    // keeps the two cards the same height whatever they say;
+                    // the scale factor is the safety valve for a long word or a
+                    // larger Dynamic Type setting — shrink slightly rather than
+                    // truncate a sentence mid-promise.
+                    .lineLimit(4, reservesSpace: true)
+                    .minimumScaleFactor(0.85)
 
                 HStack(spacing: Theme.Spacing.xs) {
                     Text("Start")
@@ -219,7 +230,7 @@ struct HomeView: View {
                 .font(Theme.Typography.label)
                 .foregroundStyle(Theme.Colors.accent)
             }
-            .frame(width: 210, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .themedCard()
         }
         .buttonStyle(.plain)
@@ -247,14 +258,16 @@ struct HomeView: View {
         }
     }
 
+    /// Half-width cards, so these are the short forms — the paywall carries the
+    /// full explanation where there is room for it. Shorter, but not looser:
+    /// captions still read as optional and user-approved, because that is the
+    /// claim the consent gate has to keep.
     private static func pitch(for kind: AnalysisKind) -> String {
         switch kind {
         case .standard:
             return "Your story in 5–7 sharp beats. Ready in seconds."
         case .deep:
-            // Kept in step with the paywall's Deep row: captions are opt-in,
-            // limited to the photos the results show, and user-approved.
-            return "A 2–3× richer story over any date range. Optional AI captions on the photos in your results — you approve them first."
+            return "2–3× richer, over any date range. Optional captions you approve."
         case .handPicked:
             return "You pick up to 30 photos; the AI reads each one up close."
         }

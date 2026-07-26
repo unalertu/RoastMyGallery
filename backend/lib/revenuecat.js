@@ -22,7 +22,12 @@ export const CREDIT_COSTS = {
   analysis: 1,
   deep_analysis: 5,
   deep_vision: 5,
-  starter: 3,
+  // Deliberately >= deep_analysis + analysis, so a brand-new user can run one
+  // Deep AND one Standard without paying. At 3 the premium tier was literally
+  // unreachable on the free grant: a first-time buyer — and an App Review
+  // tester — had to purchase Deep blind, without ever seeing the consent
+  // screen the privacy contract leans on.
+  starter: 6,
 };
 
 const RC_API_BASE = "https://api.revenuecat.com/v2";
