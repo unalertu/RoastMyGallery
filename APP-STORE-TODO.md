@@ -254,6 +254,13 @@ batch. Uploaded images are processed in memory and are never stored or logged.
 ## Tuzaklar
 
 - **Keychain uygulama silinince silinmiyor** — "sil/yeniden kur" temiz test değil.
+- **`/api/starter-grant`'i elle curl'lemek her zaman 502 döner** — uydurma bir
+  `rmg_` kimliğini hiçbir SDK RevenueCat'e kaydetmediği için sanal para
+  ayarlaması **404** alır; o API müşteriyi kendisi oluşturmuyor. Bu endpoint'in
+  doğru çalıştığının işareti, hata değil. Gerçek cihazda `bootstrap()` önce
+  `loadOfferings()` çağırıp müşteriyi oluşturduğu için sorun çıkmıyor
+  ([PurchaseManager.swift:156](RoastMyGallery/Services/Purchases/PurchaseManager.swift#L156)
+  — o iki satırın sırası yük taşıyor, değiştirme).
 - **Yerel StoreKit satın alması gem vermiyor** — RevenueCat'in sunucu tarafı
   grant'i tetiklenmiyor. Kutlama ekranı "+10 gems" der ama bakiye artmaz.
   Beklenen davranış, hata değil.

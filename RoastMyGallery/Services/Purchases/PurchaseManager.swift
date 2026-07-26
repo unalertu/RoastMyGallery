@@ -153,6 +153,23 @@ final class PurchaseManager {
 
     /// One-shot startup: load products, read the balance, and grant
     /// first-launch starter gems if this user is new.
+    ///
+    /// THE ORDER OF THE MIDDLE TWO LINES IS LOAD-BEARING. `loadOfferings()` is
+    /// the first call that reaches RevenueCat carrying this App User ID, and
+    /// that round trip is what *creates the customer* on their side. The
+    /// starter grant is a server-to-server Virtual Currency adjustment, and
+    /// that API returns **404 for a customer that doesn't exist yet** — it does
+    /// not create one. Hoisting `ensureStarterGrant()` above `loadOfferings()`
+    /// would therefore leave every genuinely new user (including an App Review
+    /// tester) on zero gems with the whole app behind the paywall.
+    ///
+    /// It self-heals if it does happen — a failed grant returns `.unavailable`,
+    /// which deliberately writes no "already asked" flag, so the next launch
+    /// retries — but the first session is already ruined by then.
+    ///
+    /// Corollary for anyone debugging: calling `/api/starter-grant` by hand
+    /// with a made-up `rmg_` ID will always 502, because no SDK ever registered
+    /// that ID. That is the endpoint working correctly, not a bug.
     func bootstrap() async {
         guard Purchases.isConfigured else { return }
         primeCachedBalance()
