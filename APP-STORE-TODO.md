@@ -99,7 +99,19 @@ kendiyle çelişiyordu. Hem `legal/*.md`'de hem canlıda tamamlandı.
 - [ ] **Vercel env var'ları:** `REVENUECAT_SECRET_KEY` + `REVENUECAT_PROJECT_ID`
       var mı? Yoksa kimse gem alamaz, reviewer dahil. `GEMINI_API_KEY` ve
       `APP_SHARED_SECRET` de kontrol et.
-- [ ] 🔴 **`KV_REST_API_URL` + `KV_REST_API_TOKEN`** (ya da `UPSTASH_REDIS_REST_*`).
+- [x] ✅ **`KV_REST_API_URL` + `KV_REST_API_TOKEN`** — **çözüldü 2026-07-26.**
+      Upstash veritabanı (`upstash-kv-citrine-zebra`) `backend` projesine zaten
+      bağlıymış, ama **son deployment 9 gün eskiydi** ve env var'ları görmüyordu.
+      `vercel --prod` ile yeniden deploy edilince aktifleşti.
+      Doğrulandı: sil-kur sonrası ilk grant işareti yazdı
+      (`EXISTS once:starter-grant:rmg_...:v1` → `1`), `DBSIZE` > 0.
+      Bununla birlikte `runId` ücret tekilliği de aktifleşti — retry'da çift
+      gem düşme ihtimali kapandı.
+      **Test ederken dikkat:** ilk sil-kur +6 verir ve normaldir; o grant
+      işareti yazan grant'tir. Engeli görmek için **ikinci** sil-kur'a bak.
+
+  <details><summary>Sorun tekrarlarsa: açığın mekanizması</summary>
+
       **Starter grant'in tekrar alınmasını engelleyen tek şey bu.** Zincir:
       `didRequestStarterGrant` UserDefaults'ta → uygulama silinince uçuyor →
       client tekrar istiyor. `rmg_` kimliği Keychain'de kaldığı için aynı
@@ -114,6 +126,13 @@ kendiyle çelişiyordu. Hem `legal/*.md`'de hem canlıda tamamlandı.
       Kapatınca geriye sadece "Erase All Content" / iCloud Keychain kapalı
       senaryosu kalıyor — tam cihaz sıfırlama maliyeti farming'i pratik olmaktan
       çıkarıyor.
+
+  **Ders:** env var'ları bağlamak yetmiyor, Vercel onları eski deployment'lara
+  uygulamıyor. Backend'e env var eklendiğinde `cd backend && vercel --prod`
+  şart. Panelden "Redeploy" ise 9 gün önceki KODU yeniden yayınlar — yeni kodu
+  canlıya almaz.
+  </details>
+
 - [ ] Gemini API anahtarına **API kısıtlaması** koy (sadece Generative Language
       API) — anahtar rotate edilmeyecek, bu riski küçültür.
 - [x] ~~Handoff dosyasını siteyi kuran Claude sohbetine gönder~~ — **gerek
