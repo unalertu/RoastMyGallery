@@ -61,7 +61,11 @@ final class PurchaseManager {
     nonisolated static let deepAnalysisCost = 5
     /// Hand-picked Deep Vision: the user-selected ≤30 photo batch.
     nonisolated static let deepVisionCost = 5
-    nonisolated static let starterGems = 3
+    // No `starterGems` mirror here on purpose: the grant amount is decided by
+    // the backend (`CREDIT_COSTS.starter`) and only ever reaches the client as
+    // a balance. The constant that used to live here was unused and had already
+    // drifted out of date — which is exactly what a second copy of a server-owned
+    // number does. UI that talks about the free gems reads `gemBalance`.
 
     /// Cost of one analysis run at the given depth.
     nonisolated static func cost(for depth: AnalysisDepth) -> Int {

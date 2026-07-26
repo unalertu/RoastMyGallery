@@ -664,8 +664,35 @@ struct HomeView: View {
                 .font(Theme.Typography.body)
                 .foregroundStyle(Theme.Colors.textSecondary)
                 .lineSpacing(Theme.Typography.bodyLineSpacing)
+
+            if canAffordBothTiers {
+                freeRunsHint
+            }
         }
         .padding(.top, Theme.Spacing.m)
+    }
+
+    /// The starter grant is sized to cover one of each tier, but "6 gems" makes
+    /// the user do that arithmetic against two prices on the cards below. Say
+    /// what it buys instead.
+    ///
+    /// Phrased around what the balance affords rather than around the grant, so
+    /// it can't lie: the amount is the backend's to decide, and this is also
+    /// reachable by someone who cleared their history after buying gems.
+    private var canAffordBothTiers: Bool {
+        purchaseManager.canAfford(PurchaseManager.deepAnalysisCost + PurchaseManager.analysisCost)
+    }
+
+    private var freeRunsHint: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.xs) {
+            Image(systemName: "diamond.fill")
+                .font(.system(size: 10, weight: .medium))
+            Text("You have enough gems for one Deep and one Standard analysis — no purchase needed.")
+                .font(Theme.Typography.caption)
+                .lineSpacing(2)
+        }
+        .foregroundStyle(Theme.Colors.accent)
+        .padding(.top, Theme.Spacing.xs)
     }
 }
 
