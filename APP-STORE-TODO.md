@@ -223,14 +223,11 @@ batch. Uploaded images are processed in memory and are never stored or logged.
       hikâye kaydedilmeli, kaybolmamalı.
 - [ ] Sonuç ekranı → "Report this analysis" → mail taslağı açılıyor mu
       (Deep analizde de dene: orada 1500 karakter kırpması devreye giriyor)
-- [~] **Paywall + satın alma zinciri — büyük ölçüde doğrulandı 2026-07-26.**
-      40 gem'lik bir paket satın alındı ve bakiye gerçekten arttı. Bu, ürünlerin
-      yüklendiğini **ve** RevenueCat'in sunucu tarafı grant'inin tetiklendiğini
-      gösteriyor — yerel `.storekit` satın alması gem vermez (aşağıdaki
-      tuzaklara bak), dolayısıyla zincir uçtan uca çalışıyor.
-      **Kapatmadan önce teyit et:** bu satın alma **gerçek cihazda** mı yapıldı?
-      Simulator'daysa gerçek cihazda bir kez daha tekrarlanmalı — 2.1 reddinin
-      en yaygın sebebi budur.
+- [x] ✅ **Paywall + satın alma zinciri — GERÇEK CİHAZDA doğrulandı 2026-07-26.**
+      40 gem'lik paket gerçek cihazda sandbox üzerinden satın alındı ve bakiye
+      arttı. Bu üçünü birden kanıtlıyor: ürünler yükleniyor (2.1 reddinin en
+      yaygın sebebi kapandı), satın alma tamamlanıyor, ve RevenueCat'in sunucu
+      tarafı grant'i tetikleniyor — yerel `.storekit` satın alması gem vermezdi.
 - [ ] Temiz kurulumda 3 starter gem geliyor mu. **Dikkat:** Keychain uygulama
       silinince silinmiyor — gerçek temiz test için Simulator'da
       "Erase All Content and Settings" ya da ikinci cihaz gerekiyor.
