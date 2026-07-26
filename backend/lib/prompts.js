@@ -9,8 +9,8 @@
 export const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 /**
- * Vision-capable model for Deep Vision (Pro) photo batches. Full flash (not
- * -lite): the premium tier pays 5 credits for richer, photo-level commentary,
+ * Vision-capable model for hand-picked Deep Vision photo batches. Full flash
+ * (not -lite): that run costs 5 credits for richer, photo-level commentary,
  * so it gets the strongest GA flash. Verified against this API key's
  * ListModels on 2026-07-15: plain `gemini-3.1-flash` does NOT exist for this
  * key (404) — the GA options were 3.1-flash-lite and 3.5-flash.
@@ -113,7 +113,7 @@ export function allowedCategories(stats, depth = "standard") {
 }
 
 // ---------------------------------------------------------------------------
-// Deep Vision (Pro) — photo-level commentary on an explicitly consented batch
+// Deep Vision — photo-level commentary on an explicitly consented batch
 
 /**
  * Output contract for api/deep-vision.js (and the iOS client): an overall

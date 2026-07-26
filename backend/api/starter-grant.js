@@ -1,6 +1,7 @@
 // POST /api/starter-grant
 // Body:    { appUserId: string }
-// Returns: { ok: true, granted: boolean }
+// Returns: { ok: true, granted: true }
+//          { ok: true, granted: false, reason: "already_granted" | "not_configured" }
 //
 // Grants one-time first-launch starter credits (+3 CRD). RevenueCat only grants
 // credits from purchases, so non-purchase "welcome" credits must be issued as a
@@ -13,6 +14,14 @@
 // is just politeness; this claim is what stops a reinstall or a crafted
 // request from re-granting. Fail-open when the KV env vars are unset — until
 // then the endpoint behaves like the old client-trusting scaffold.
+//
+// WHY `reason` EXISTS: "granted: false" alone is ambiguous, and the two cases
+// need opposite handling from the client. `already_granted` is settled — this
+// user has had their credits, stop asking. `not_configured` means NOTHING was
+// granted and nothing was recorded (the RevenueCat env vars aren't set yet), so
+// the client MUST keep retrying on later launches. Collapsing the two is how a
+// first launch against a half-configured backend strands a user at zero credits
+// forever: the client latches "asked once" and never asks again.
 
 import { grantCredits, CREDIT_COSTS } from "../lib/revenuecat.js";
 import { checkAppSecret, clientIP, allowRequest } from "../lib/guard.js";
@@ -43,16 +52,24 @@ export default async function handler(req, res) {
   // isn't permanently locked out of its starter credits.
   const claim = await claimOnce("starter-grant", appUserId, "v1");
   if (claim === "duplicate") {
-    return res.status(200).json({ ok: true, granted: false });
+    return res.status(200).json({ ok: true, granted: false, reason: "already_granted" });
   }
 
   const result = await grantCredits(appUserId, CREDIT_COSTS.starter);
-  if (!result.ok) {
+
+  // Release on ANY outcome that didn't actually move the balance — a failure
+  // *and* a fail-open skip. A skip that leaves its claim behind is the worst of
+  // both worlds: no credits were granted, yet every later attempt reads as
+  // "already_granted" and the user can never receive them.
+  if (!result.ok || result.skipped) {
     if (claim === "claimed") {
       await releaseOnce("starter-grant", appUserId, "v1");
     }
-    return res.status(502).json({ error: "Could not grant starter credits." });
+    if (!result.ok) {
+      return res.status(502).json({ error: "Could not grant starter credits." });
+    }
+    return res.status(200).json({ ok: true, granted: false, reason: "not_configured" });
   }
 
-  return res.status(200).json({ ok: true, granted: !result.skipped });
+  return res.status(200).json({ ok: true, granted: true });
 }

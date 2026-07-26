@@ -162,16 +162,24 @@ struct PaywallView: View {
                 icon: "diamond.fill",
                 tint: Theme.Colors.powderBlue,
                 title: "\(PurchaseManager.analysisCost) gem = 1 gallery analysis",
-                detail: "Full-history scan plus an AI-written insight."
+                // Standard scans ONE month or ONE album — `canStart` won't let
+                // the run begin without that choice, so "full-history" would be
+                // a promise the product can't keep.
+                detail: "One month or one album, scanned on your device and turned into an AI-written story."
             )
             // Deep Analysis, not Deep Vision: the hand-picked Deep Vision flow
-            // is gated behind `AnalysisKind.handPicked.isComingSoon`, and the
-            // paywall must only sell what users can actually run today.
+            // is absent from `AnalysisKind.launchable`, and the paywall must
+            // only sell what users can actually run today.
             explainerRow(
                 icon: "diamond.fill",
                 tint: Theme.Colors.dustyRose,
                 title: "\(PurchaseManager.deepAnalysisCost) gems = 1 Deep Analysis",
-                detail: "A 2–3× richer story over any date range, with an AI caption on every photo."
+                // Captions are opt-in (toggle off by default), cover only the
+                // photos the results actually show (one per beat, capped at
+                // `PhotoCaptionService.maxBatchSize`), and the user approves
+                // that exact batch. "A caption on every photo" was none of
+                // those things.
+                detail: "A 2–3× richer story over any date range. Optional AI captions on the photos in your results — you approve them first."
             )
         }
         .themedCard()
@@ -268,9 +276,7 @@ struct PaywallView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
 
             Button("Privacy") {
-                if let url = URL(string: "https://roastmygallery.unlertu.workers.dev/privacy/") {
-                    openURL(url)
-                }
+                openURL(AppConfig.privacyPolicyURL)
             }
             .font(Theme.Typography.caption)
             .foregroundStyle(Theme.Colors.textSecondary)
@@ -280,9 +286,7 @@ struct PaywallView: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
 
             Button("Terms") {
-                if let url = URL(string: "https://roastmygallery.unlertu.workers.dev/terms/") {
-                    openURL(url)
-                }
+                openURL(AppConfig.termsOfUseURL)
             }
             .font(Theme.Typography.caption)
             .foregroundStyle(Theme.Colors.textSecondary)

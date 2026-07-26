@@ -1,9 +1,9 @@
 # Privacy Policy — Roast My Gallery
 
-**Effective date:** [EFFECTIVE DATE]
-**Last updated:** [EFFECTIVE DATE]
+**Effective date:** July 18, 2026
+**Last updated:** July 18, 2026
 
-This Privacy Policy explains how **[PROVIDER NAME]** ("we," "us," or "our"),
+This Privacy Policy explains how **Ertuğrul Ünal** ("we," "us," or "our"),
 the developer of the **Roast My Gallery** mobile application (the "App"),
 handles information in connection with your use of the App.
 
@@ -28,12 +28,13 @@ If you have any questions, contact us at **roastmygallery@gmail.com**.
   patterns) to our backend, which uses a third‑party AI provider (Google
   Gemini) to generate text. This summary contains no images, no file
   identifiers, no precise location, and no names.
-- **Images are uploaded only when you explicitly opt in.** Two optional,
-  paid features — **Deep Analysis** (AI photo captions) and **Deep Vision**
-  (photo‑by‑photo commentary) — upload a **downscaled copy** of the specific
-  photos you hand‑pick and approve, batch by batch. Those images are processed
-  in memory to generate your result and then discarded. They are **not stored**
-  on our servers and are **never logged**.
+- **Images are uploaded only when you explicitly opt in, and only after you
+  have seen them.** The optional, paid **Deep Analysis** feature (AI photo
+  captions) shows you the exact photos it proposes to caption; you can remove
+  any of them, or decline entirely, and only the photos you approve are uploaded
+  as a **downscaled copy**. Those images are processed in memory to generate
+  your result and then discarded. They are **not stored** on our servers and are
+  **never logged**.
 - **No account, no tracking, no ads, no data sales.** We do not sell or share
   your personal information for advertising, and we do not use third‑party
   analytics or ad SDKs.
@@ -42,7 +43,7 @@ If you have any questions, contact us at **roastmygallery@gmail.com**.
 
 ## 2. Who we are
 
-The App is published by **[PROVIDER NAME]** ("we"). You can reach us at
+The App is published by **Ertuğrul Ünal** ("we"). You can reach us at
 **roastmygallery@gmail.com** for any privacy request or question.
 
 ---
@@ -79,16 +80,23 @@ personally identifying information**. It may include:
 The summary **never** contains your images, photo/file identifiers, precise
 GPS coordinates, contact names, or other identifying data.
 
-### 3.3 Optional image uploads (Deep Analysis and Deep Vision)
+### 3.3 Optional image uploads (Deep Analysis)
 
-If you use the optional paid **Deep Analysis** or **Deep Vision** features, the
-App will, **only after you give explicit consent for that specific batch**:
+If you use the optional paid **Deep Analysis** feature, the App will, **only
+after you have seen the specific photos involved and approved that exact
+batch**:
 
-- Resize the photos you selected into smaller copies **on your device**
+- Resize the photos you approved into smaller copies **on your device**
   (originals are never uploaded);
 - Upload those downscaled copies once to our backend, which forwards them to
-  our AI provider (Google Gemini) to generate captions or commentary;
+  our AI provider (Google Gemini) to generate captions;
 - Return the result to your device.
+
+To be precise about how that batch is chosen: the App selects a small number of
+photos from your library that best illustrate the story it has written, and then
+**presents them to you before anything is uploaded**. You may remove any of them
+or decline the upload altogether, in which case no image leaves your device and
+you simply receive your story without captions.
 
 These uploaded images are processed **in memory** and then **discarded**. They
 are **not written to disk, not stored, and never logged** on our servers.
@@ -97,9 +105,13 @@ are **not written to disk, not stored, and never logged** on our servers.
 
 The App uses **RevenueCat** to manage in‑app purchases and a virtual currency
 ("gems"). For this, the App creates a **random identifier** (for example,
-`rmg_` followed by a random value) stored in your device Keychain. This
-identifier is **not linked to your real‑world identity** — we do not know your
-name, email, or Apple ID from it.
+`rmg_` followed by a random value) stored in your **iCloud Keychain**. Storing
+it there is what lets your purchased gems survive reinstalling the App and
+follow you to a new device; it is synced by Apple under your own iCloud account,
+and we never receive your iCloud credentials. If you have iCloud Keychain turned
+off, the identifier simply stays on the device. This identifier is **not linked
+to your real‑world identity** — we do not know your name, email, or Apple ID
+from it.
 
 When you make a purchase or spend/earn gems, this identifier and the relevant
 purchase/transaction information are processed by Apple and RevenueCat so that
@@ -131,7 +143,7 @@ or behavioral profiles.
 We use the information described above to:
 
 - Analyze your photos on your device and generate your insight/results;
-- Provide the optional Deep Analysis and Deep Vision features you request;
+- Provide the optional Deep Analysis captions you request;
 - Process in‑app purchases and manage your gem balance and entitlements;
 - Operate, secure, and protect the App against abuse (e.g., rate‑limiting);
 - Respond to your support requests.
@@ -150,14 +162,22 @@ your personal information to anyone. Our providers are:
 | **Apple** (App Store / iOS) | App distribution and in‑app purchase billing | Your purchase/transaction data, per Apple's terms |
 | **RevenueCat** | In‑app purchase and virtual‑currency management | Your random app‑user identifier and purchase/entitlement data |
 | **Vercel** | Backend hosting (United States) | Requests to our backend, including IP address and request metadata |
-| **Google (Gemini API)** | AI text and image understanding | The anonymous statistics summary and, for Deep Analysis/Deep Vision, the downscaled images you approve |
+| **Google (Gemini API)** | AI text and image understanding | The anonymous statistics summary and, for Deep Analysis, the downscaled images you approve |
 
 **AI content:** The text and captions in the App are generated by an AI model
 (Google Gemini) operated by Google. The anonymous statistics — and, only with
-your explicit consent, your downscaled photos — are sent to Google to generate
-your result. We instruct our processing so that images are used only to produce
-your result and are not retained by our backend. Google's handling of API data
-is governed by Google's applicable terms and privacy commitments.
+your explicit approval of the specific photos, your downscaled images — are sent
+to Google to generate your result.
+
+We use Google's **paid** Gemini API service. Under Google's terms for that
+service, Google does **not** use your prompts or the images we send to improve
+or train its models, and they are not subject to human review for product
+improvement. Google may retain prompts and responses for a limited period solely
+to detect and prevent abuse and to meet its legal and security obligations. Our
+own backend processes your images in memory only and does not retain them.
+
+Google's handling of API data is governed by Google's applicable terms and
+privacy commitments, linked below.
 
 - Apple: https://www.apple.com/legal/privacy/
 - RevenueCat: https://www.revenuecat.com/privacy/
@@ -180,7 +200,7 @@ is governed by Google's applicable terms and privacy commitments.
 
 ## 7. Data retention
 
-- **Images** sent for Deep Analysis/Deep Vision: processed in memory and
+- **Images** sent for Deep Analysis: processed in memory and
   discarded after your result is generated; not stored by our backend.
 - **Anonymous statistics:** used to generate your result; not retained by our
   backend as a personal profile.
@@ -257,7 +277,7 @@ revised Policy.
 
 ## 13. Contact us
 
-**[PROVIDER NAME]**
+**Ertuğrul Ünal**
 Email: **roastmygallery@gmail.com**
 
 If you have concerns we cannot resolve, you may have the right to contact your

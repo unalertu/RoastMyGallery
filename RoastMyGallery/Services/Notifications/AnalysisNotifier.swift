@@ -25,10 +25,16 @@ enum AnalysisNotifier {
         "analysis-run-finished-\(flow.rawValue)"
     }
 
+    // `nonisolated` because `NotificationRouter` — a plain NSObject, not on the
+    // main actor — reads these from its async delegate callbacks. They're
+    // immutable string literals, so there is nothing for the actor to protect;
+    // without this the reads are a warning today and a hard error under the
+    // Swift 6 language mode. Same reasoning as `PurchaseManager`'s constants.
+
     /// userInfo key carrying the finished record's UUID for tap routing.
-    static let recordIDKey = "recordID"
+    nonisolated static let recordIDKey = "recordID"
     /// userInfo key carrying the `Flow` raw value.
-    static let flowKey = "flow"
+    nonisolated static let flowKey = "flow"
 
     static func requestAuthorizationIfNeeded() async {
         let center = UNUserNotificationCenter.current()

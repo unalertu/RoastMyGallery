@@ -43,7 +43,7 @@ struct PermissionView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Your photos stay on your device")
                         .font(Theme.Typography.headline)
-                    Text("The scan runs on your phone — only anonymous statistics are used to write your story. A photo is sent to AI only if you turn on AI captions or Deep Vision, and only the ones you approve.")
+                    Text("The scan runs on your phone — only anonymous statistics are used to write your story. A photo is sent to AI only if you turn on AI captions, and only after you've seen the exact photos and approved them.")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineSpacing(2)
@@ -72,7 +72,22 @@ struct PermissionView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
             }
+
+            legalLine
         }
         .padding(Theme.Spacing.l)
+    }
+
+    /// Standard, non-blocking disclosure. No checkbox and nothing to dismiss:
+    /// Apple's EULA already applies to every App Store download, and a
+    /// launch-time consent wall would be friction without legal benefit. This
+    /// simply puts both documents where a first-time user actually is — one
+    /// screen before any photo access is requested.
+    private var legalLine: some View {
+        Text("By continuing you agree to our [Terms of Use](\(AppConfig.termsOfUseURL.absoluteString)) and [Privacy Policy](\(AppConfig.privacyPolicyURL.absoluteString)).")
+            .font(Theme.Typography.caption)
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .padding(.top, Theme.Spacing.xs)
     }
 }

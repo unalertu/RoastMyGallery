@@ -1,6 +1,6 @@
 import Foundation
 
-/// Pro-tier deep analysis: uploads the consented, already-downscaled photo
+/// Hand-picked Deep Vision: uploads the consented, already-downscaled photo
 /// batch to `backend/api/deep-vision.js` (a Vercel function wrapping Gemini's
 /// vision model) and maps the returned batch-index references back to local
 /// asset IDs.

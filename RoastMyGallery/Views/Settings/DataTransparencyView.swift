@@ -49,7 +49,7 @@ struct DataTransparencyView: View {
             bullet(icon: "xmark.circle",
                    text: "What never leaves: your photos, photo identifiers, precise locations, names — anything identifying.")
             bullet(icon: "hand.raised",
-                   text: "Deep Analysis uploads only photos you hand-pick, and only after you approve that exact batch.")
+                   text: "Deep Analysis shows you the exact photos it wants to caption before anything is sent. You can drop any of them, or send none at all.")
         }
         .themedCard()
     }

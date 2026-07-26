@@ -11,8 +11,8 @@ import SwiftUI
 //                        →  InsightGenerating (stats JSON → LLM narrative)
 //                        →  ShareCardRendering (narrative → shareable image)
 //
-// Pro tier adds a parallel branch: DeepVisionAnalyzing (explicit-consent
-// photo upload → per-photo commentary).
+// The hand-picked flow adds a parallel branch: DeepVisionAnalyzing
+// (explicit-consent photo upload → per-photo commentary).
 
 /// Progress reporting for the on-device scan. Sent frequently; keep it cheap.
 struct AnalysisProgress: Sendable, Equatable {
@@ -132,8 +132,9 @@ protocol ShareCardRendering {
     func renderCard(insight: Insight, stats: PhotoStats) throws -> UIImage
 }
 
-/// Pro tier — deep per-photo analysis of an explicitly consented photo batch.
-/// The ONLY code path in the app that uploads image data.
+/// The hand-picked flow — deep per-photo analysis of an explicitly consented
+/// photo batch, one of the two code paths that upload image data (the other is
+/// `PhotoCaptioning`, for deep-analysis captions).
 protocol DeepVisionAnalyzing: Sendable {
     /// Maximum number of photos a single batch may contain.
     var maxBatchSize: Int { get }

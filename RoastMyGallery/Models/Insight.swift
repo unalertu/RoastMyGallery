@@ -45,8 +45,8 @@ struct Insight: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// Pro-tier only: the output of one Deep Vision batch — an overall summary
-/// line plus photo-level commentary segments. Persisted inside the run's
+/// The output of one hand-picked Deep Vision batch — an overall summary line
+/// plus photo-level commentary segments. Persisted inside the run's
 /// `AnalysisRecord` (device-only, like everything else in history).
 struct DeepVisionResult: Codable, Sendable, Hashable {
     /// One overall observation about the whole batch.

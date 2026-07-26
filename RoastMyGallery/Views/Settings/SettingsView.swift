@@ -15,6 +15,10 @@ struct SettingsView: View {
     /// Shown when the user enables the reminder but notifications are off.
     @State private var showNotificationDeniedAlert = false
 
+    /// Set when a `mailto:` link can't open because the device has no mail
+    /// account configured.
+    @State private var mailUnavailable = false
+
     /// Drives the weekly reminder. Persisted so the row reflects the user's
     /// choice, but the actual scheduling happens in `.onChange` below via
     /// `ReminderScheduler` (which requests permission lazily, only here).
@@ -56,6 +60,12 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes every saved analysis from this device. It can't be undone.")
+        }
+        .alert("No mail app set up", isPresented: $mailUnavailable) {
+            Button("Copy Address") { UIPasteboard.general.string = SupportMail.address }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Email \(SupportMail.address) and we'll get back to you.")
         }
         .alert("Notifications are off", isPresented: $showNotificationDeniedAlert) {
             Button("Open Settings") {
@@ -126,7 +136,7 @@ struct SettingsView: View {
                 Image(systemName: "lock.shield")
                     .font(.system(size: 22, weight: .light))
                     .foregroundStyle(Theme.Colors.accent)
-                Text("Your photos are analyzed on this device, and by default only anonymous statistics are sent. Photos leave your phone only when you opt in — the AI captions and Deep Vision you approve, batch by batch — and they're never stored on the server.")
+                Text("Your photos are analyzed on this device, and by default only anonymous statistics are sent. A photo leaves your phone only if you turn on AI captions — and even then you see the exact photos and approve them first. Approved photos go to our AI provider, Google Gemini, to be captioned — they are not used to train any AI model, and we don't keep a copy.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineSpacing(3)
@@ -148,9 +158,7 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
-                if let url = URL(string: Self.privacyPolicyURL) {
-                    openURL(url)
-                }
+                openURL(AppConfig.privacyPolicyURL)
             } label: {
                 SettingsRowLabel(
                     icon: "hand.raised",
@@ -163,9 +171,7 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
-                if let url = URL(string: Self.termsOfUseURL) {
-                    openURL(url)
-                }
+                openURL(AppConfig.termsOfUseURL)
             } label: {
                 SettingsRowLabel(
                     icon: "doc.plaintext",
@@ -180,35 +186,15 @@ struct SettingsView: View {
     // MARK: - Preferences
 
     private var preferencesSection: some View {
+        // One row for now. The Appearance row that used to sit here was a dimmed
+        // "SOON" teaser for the unbuilt dark theme — placeholder UI under App
+        // Store Review Guideline 2.1 — so it's gone until there's a real theme
+        // to switch to (the app forces Light Mode at the root meanwhile).
         SettingsSection(title: "Preferences") {
             Toggle(isOn: $monthlyReminderEnabled) {
                 SettingsRowLabel(icon: "bell", title: "Notifications", detail: nil)
             }
             .tint(Theme.Colors.accent)
-
-            Divider().overlay(Theme.Colors.background)
-
-            // Non-interactive on purpose: the DesignSystem palette is tuned for
-            // light backgrounds only and the app forces Light Mode at the root,
-            // so there's nothing to switch to yet. Rendered dimmed with a
-            // "Soon" tag so it doesn't read as a tappable control.
-            HStack {
-                SettingsRowLabel(
-                    icon: "sun.max",
-                    title: "Appearance",
-                    detail: "Light — a dark pastel theme is on the way"
-                )
-                Spacer()
-                Text("SOON")
-                    .font(Theme.Typography.label)
-                    .tracking(1)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .padding(.horizontal, Theme.Spacing.s)
-                    .padding(.vertical, Theme.Spacing.xs)
-                    .background(Theme.Colors.cream, in: Capsule())
-            }
-            .opacity(0.55)
-            .allowsHitTesting(false)
         }
     }
 
@@ -255,7 +241,7 @@ struct SettingsView: View {
             HStack {
                 SettingsRowLabel(icon: "app.badge", title: "Version", detail: nil)
                 Spacer()
-                Text(appVersion)
+                Text(SupportMail.appVersion)
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -263,7 +249,12 @@ struct SettingsView: View {
             Divider().overlay(Theme.Colors.background)
 
             Button {
-                if let url = feedbackMailURL { openURL(url) }
+                guard let url = SupportMail.feedbackURL() else { return }
+                // No mail account = `mailto:` silently does nothing; show the
+                // address rather than leave a dead-looking row.
+                openURL(url) { opened in
+                    if !opened { mailUnavailable = true }
+                }
             } label: {
                 SettingsRowLabel(icon: "envelope", title: "Contact & Feedback", detail: nil)
             }
@@ -305,40 +296,12 @@ struct SettingsView: View {
         }
     }
 
-    /// `mailto:` URL pre-filled with a support address plus app/device context,
-    /// so feedback arrives with the info we'd otherwise have to ask for.
-    private var feedbackMailURL: URL? {
-        let supportAddress = "roastmygallery@gmail.com"
-        let body = """
-
-
-        —
-        Please write your feedback above this line.
-        App version: \(appVersion)
-        Device: \(UIDevice.current.model), iOS \(UIDevice.current.systemVersion)
-        """
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = supportAddress
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: "Roast My Gallery feedback"),
-            URLQueryItem(name: "body", value: body)
-        ]
-        return components.url
-    }
-
-    private var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
-        return "\(version) (\(build))"
-    }
-
     // MARK: - URLs
     /// App Store product page (Apple ID 6791121107) — used by both the
     /// share sheet and, with `?action=write-review`, the Rate button.
     private static let appStoreURL = "https://apps.apple.com/app/roast-my-gallery/id6791121107"
-    private static let privacyPolicyURL = "https://roastmygallery.unlertu.workers.dev/privacy/"
-    private static let termsOfUseURL = "https://roastmygallery.unlertu.workers.dev/terms/"
+    // Privacy / Terms links live in `AppConfig` — one place for all four
+    // surfaces that link them.
 }
 
 // MARK: - Section & row building blocks

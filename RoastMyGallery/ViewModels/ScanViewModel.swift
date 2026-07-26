@@ -18,7 +18,12 @@ final class ScanViewModel {
         case readyToScan
         case scanning(AnalysisProgress)
         case generatingInsight
-        /// Deep analysis only: uploading the results-screen photos for their
+        /// Deep analysis only: the pipeline is PAUSED showing the user the exact
+        /// photos that would be uploaded for captions, waiting for them to
+        /// approve (or trim, or refuse) that batch. Carries the asset IDs in
+        /// results order. Nothing has left the device at this point.
+        case reviewingCaptionPhotos([String])
+        /// Deep analysis only: uploading the approved photos for their
         /// per-photo captions (best-effort — never fails the run).
         case captioning
         case results(AnalysisRecord)
@@ -40,13 +45,25 @@ final class ScanViewModel {
     private(set) var backgroundFailureMessage: String?
 
     /// True while the pipeline is actually working (scan → insight → captions).
-    /// The minimized-run banner and the "don't clobber a paid run" guards all
-    /// key off this.
+    /// The minimized-run banner keys off this.
+    ///
+    /// Deliberately EXCLUDES `.reviewingCaptionPhotos`: nothing is progressing
+    /// while we wait for the user, so the banner must not claim otherwise and
+    /// the flow's close button must cancel rather than minimize — minimizing a
+    /// run that can only advance on a tap would suspend it forever.
     var isRunActive: Bool {
         switch phase {
         case .scanning, .generatingInsight, .captioning: return true
         default: return false
         }
+    }
+
+    /// Paused mid-run on the caption-approval gate. Not `isRunActive` (see
+    /// above), but it still owns the pipeline, so a new run must not start on
+    /// top of it — the "don't clobber a paid run" guards check both.
+    var isAwaitingCaptionReview: Bool {
+        if case .reviewingCaptionPhotos = phase { return true }
+        return false
     }
     /// No default on purpose — the picker presents both personas neutrally
     /// and the user must choose before scanning.
@@ -82,11 +99,12 @@ final class ScanViewModel {
     ///   starts scope-less (the user must pick a date range) and with consent
     ///   reset — it's an explicit opt-in every run.
     func prepareForNewScan(depth: AnalysisDepth = .standard) {
-        // A run is already working: never cancel-and-reset it from the New
-        // Analysis entry points — surface the running flow instead. Charges
-        // are deduct-after-success, so cancelling a nearly-done run and
-        // starting fresh is exactly how you'd pay twice for one story.
-        guard !isRunActive else {
+        // A run is already working — or paused waiting for caption approval:
+        // never cancel-and-reset it from the New Analysis entry points, surface
+        // it instead. Charges are deduct-after-success, so cancelling a
+        // nearly-done run and starting fresh is exactly how you'd pay twice for
+        // one story.
+        guard !isRunActive, !isAwaitingCaptionReview else {
             isFlowPresented = true
             return
         }
@@ -338,23 +356,12 @@ final class ScanViewModel {
                 // above returns before here and is never charged.
                 await purchaseManager.reflectSpend(PurchaseManager.cost(for: depth))
 
-                // Deep only: caption the photos the results screen will show.
-                // Best-effort — the 5 gems bought the long story above; a
-                // captioning hiccup (or a cancel while captioning) must never
-                // lose it, so failures collapse to "no captions" and we still
-                // persist the record.
-                var captions: [String: String]?
-                if depth == .deep, let segments = insight.segments, !segments.isEmpty {
-                    phase = .captioning
-                    captions = await generateCaptions(
-                        segments: segments,
-                        photoIndex: photoIndex,
-                        persona: persona,
-                        appUserID: appUserID
-                    )
-                }
-
-                let record = AnalysisRecord(
+                // Persist the story NOW, before the caption step. It is already
+                // written and already charged for, and the approval gate below
+                // waits on a human — so the app being killed while that gate is
+                // on screen must not take a paid story with it. Captions are
+                // folded in afterwards via `history.update`.
+                var record = AnalysisRecord(
                     id: UUID(),
                     createdAt: .now,
                     persona: persona,
@@ -362,9 +369,39 @@ final class ScanViewModel {
                     stats: stats,
                     categoryPhotoIndex: photoIndex,
                     depth: depth,
-                    photoCaptions: captions
+                    photoCaptions: nil
                 )
                 history.add(record)
+
+                // Deep only: caption the photos the results screen will show.
+                // Best-effort throughout — a refusal, a hiccup or a cancel here
+                // collapses to "no captions" and never costs the story.
+                if depth == .deep, let segments = insight.segments, !segments.isEmpty {
+                    let targets = captionTargets(segments: segments, photoIndex: photoIndex)
+                    if !targets.isEmpty {
+                        // THE UPLOAD GATE. The app picks which photos illustrate
+                        // the story, so the user has to see that exact batch
+                        // before any of it leaves the device — anything else
+                        // would be asking them to consent to a set neither of
+                        // us could name at consent time.
+                        let approved = await awaitCaptionApproval(
+                            candidates: targets.map(\.assetID)
+                        )
+                        if let approved, !approved.isEmpty {
+                            phase = .captioning
+                            let approvedIDs = Set(approved)
+                            if let captions = await uploadCaptions(
+                                for: targets.filter { approvedIDs.contains($0.assetID) },
+                                persona: persona,
+                                appUserID: appUserID
+                            ) {
+                                record.photoCaptions = captions
+                                history.update(record)
+                            }
+                        }
+                    }
+                }
+
                 phase = .results(record)
                 runFinished(with: record)
             } catch is CancellationError {
@@ -396,17 +433,64 @@ final class ScanViewModel {
         AnalysisNotifier.notifyFailureIfBackgrounded()
     }
 
-    /// Resolves which photo each segment card will display (via the shared
-    /// `SegmentPhotoResolver`, so captions and cards can't drift apart),
-    /// downscales those photos, and asks the backend for one caption each.
-    /// Returns asset ID → caption, or nil when nothing could be captioned —
-    /// by design this can only *add* to the results, never fail them.
-    private func generateCaptions(
+    // MARK: - Caption approval gate
+
+    /// Resumes the paused pipeline once the user decides on the caption batch.
+    /// Non-throwing on purpose: a cancellation resolves to `nil` ("send
+    /// nothing") rather than throwing, because the long story has already been
+    /// generated and charged for and must still be saved.
+    private var captionReviewContinuation: CheckedContinuation<[String]?, Never>?
+
+    /// Upload captions for these photos — the full candidate batch, or whatever
+    /// subset the user left selected.
+    func approveCaptionPhotos(_ assetIDs: [String]) {
+        resumeCaptionReview(with: assetIDs)
+    }
+
+    /// Send nothing. The story is kept and saved; it simply has no captions.
+    func skipCaptionPhotos() {
+        resumeCaptionReview(with: nil)
+    }
+
+    /// Idempotent: the continuation is cleared BEFORE it is resumed, so a
+    /// cancellation racing a button tap can't resume the same continuation
+    /// twice (which traps at runtime).
+    private func resumeCaptionReview(with assetIDs: [String]?) {
+        guard let continuation = captionReviewContinuation else { return }
+        captionReviewContinuation = nil
+        continuation.resume(returning: assetIDs)
+    }
+
+    /// Shows the batch and suspends until the user answers. Returns the asset
+    /// IDs to upload, or nil to upload nothing.
+    private func awaitCaptionApproval(candidates: [String]) async -> [String]? {
+        phase = .reviewingCaptionPhotos(candidates)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                // Already cancelled before we could store it — resolve right
+                // here, or the handler below would have nothing to resume and
+                // the run would hang forever.
+                if Task.isCancelled {
+                    continuation.resume(returning: nil)
+                } else {
+                    captionReviewContinuation = continuation
+                }
+            }
+        } onCancel: {
+            // Closing the flow cancels the task; treat that as "send nothing"
+            // so the pipeline resumes, saves the story, and finishes cleanly.
+            Task { @MainActor in self.resumeCaptionReview(with: nil) }
+        }
+    }
+
+    /// The photos the results screen will show, one per segment, de-duplicated
+    /// and capped at the upload batch size — i.e. EXACTLY the batch that would
+    /// be uploaded. Pure and side-effect free, so the review screen and the
+    /// upload can never disagree about what is being sent.
+    private func captionTargets(
         segments: [Insight.Segment],
-        photoIndex: [String: [String]]?,
-        persona: Persona,
-        appUserID: String
-    ) async -> [String: String]? {
+        photoIndex: [String: [String]]?
+    ) -> [(assetID: String, segmentText: String, category: String?)] {
         let perSegment = SegmentPhotoResolver.assetIDsPerSegment(
             segments: segments,
             photoIndex: photoIndex
@@ -420,10 +504,20 @@ final class ScanViewModel {
             guard let assetID = perSegment[index].first, seen.insert(assetID).inserted else { continue }
             targets.append((assetID, segment.text, segment.category))
         }
-        guard !targets.isEmpty else { return nil }
+        return Array(targets.prefix(environment.photoCaptions.maxBatchSize))
+    }
 
-        let batch = Array(targets.prefix(environment.photoCaptions.maxBatchSize))
-        let photos = await CaptionPhotoLoader.loadJPEGs(for: batch)
+    /// Downscales the approved photos and asks the backend for one caption
+    /// each. Returns asset ID → caption, or nil when nothing could be
+    /// captioned — by design this can only *add* to the results, never fail
+    /// them.
+    private func uploadCaptions(
+        for targets: [(assetID: String, segmentText: String, category: String?)],
+        persona: Persona,
+        appUserID: String
+    ) async -> [String: String]? {
+        guard !targets.isEmpty else { return nil }
+        let photos = await CaptionPhotoLoader.loadJPEGs(for: targets)
         guard !photos.isEmpty else { return nil }
 
         do {

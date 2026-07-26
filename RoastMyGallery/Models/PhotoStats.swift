@@ -2,10 +2,11 @@ import Foundation
 
 /// The compact, aggregated statistics object produced by `StatsAggregator`.
 ///
-/// PRIVACY CONTRACT: this is the ONLY thing that ever leaves the device in the
-/// free tier (as JSON, to the insight backend). It must never contain image
+/// PRIVACY CONTRACT: on a standard run this is the ONLY thing that ever leaves
+/// the device (as JSON, to the insight backend). It must never contain image
 /// data, asset identifiers, exact coordinates, or any other PII. Keep every
-/// field aggregate-level.
+/// field aggregate-level. The opt-in image uploads (deep-analysis captions,
+/// Deep Vision) are the sole exception, and they carry photos — never this.
 struct PhotoStats: Codable, Sendable, Hashable {
     var generatedAt: Date
     var scope: AnalysisScope

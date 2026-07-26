@@ -1,0 +1,13 @@
+{
+  "name": "roastmygallery-site",
+  "private": true,
+  "description": "Static site for roastmygallery.unlertu.workers.dev — privacy policy, terms, support page.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  }
+}

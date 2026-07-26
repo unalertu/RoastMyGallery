@@ -243,7 +243,10 @@ private struct HistoryFilterSheet: View {
                             chip("All", isSelected: kindFilterRaw == historyFilterAll) {
                                 kindFilterRaw = historyFilterAll
                             }
-                            ForEach(AnalysisKind.allCases) { kind in
+                            // Launchable kinds only: a filter for a type no
+                            // record can have yet is a control that can only
+                            // ever return an empty list.
+                            ForEach(AnalysisKind.launchable) { kind in
                                 chip(
                                     kind.displayName,
                                     systemImage: kind.symbolName,

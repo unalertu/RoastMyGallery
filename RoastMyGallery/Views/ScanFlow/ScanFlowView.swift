@@ -30,6 +30,8 @@ struct ScanFlowView: View {
                         PersonaPickerView()
                     case .scanning, .generatingInsight, .captioning:
                         ScanProgressView()
+                    case .reviewingCaptionPhotos(let assetIDs):
+                        CaptionReviewView(assetIDs: assetIDs)
                     case .results(let record):
                         InsightView(record: record, isInScanFlow: true)
                     case .failed(let message):

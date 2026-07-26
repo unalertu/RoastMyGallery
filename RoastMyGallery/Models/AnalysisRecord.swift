@@ -68,16 +68,22 @@ enum AnalysisKind: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Not yet open to users — shown as a "Soon" teaser and not launchable.
-    /// Hand-Picked (Deep Vision) is gated off until the flow is ready; flip
-    /// this to `false` (or drop the case here) to open it back up. History
-    /// still classifies existing hand-picked records via `AnalysisRecord.kind`.
-    var isComingSoon: Bool {
-        switch self {
-        case .handPicked: return true
-        case .standard, .deep: return false
-        }
-    }
+    /// The flows users can actually start, in the order Home presents them.
+    ///
+    /// Hand-Picked (Deep Vision) is built but not open yet, so it is left out
+    /// of this list entirely rather than shown as a dimmed "Soon" teaser: App
+    /// Store Review Guideline 2.1 counts placeholder and temporary UI as an
+    /// incomplete app, so nothing user-visible may advertise a flow that can't
+    /// be run. Add `.handPicked` here to open it back up — every surface reads
+    /// this one list. The enum case stays either way: `AnalysisRecord.kind`
+    /// needs it to classify hand-picked records already in History.
+    ///
+    /// BEFORE ADDING `.handPicked`: its results screens (`DeepVisionResultsView`
+    /// / `DeepVisionRecordView`) have no "Report this analysis" row. `InsightView`
+    /// carries one because Guideline 1.2 wants a reporting path for generated
+    /// content, and opening this flow without adding the equivalent there
+    /// reopens that gap on a surface App Review can reach.
+    static let launchable: [AnalysisKind] = [.standard, .deep]
 }
 
 extension AnalysisRecord {

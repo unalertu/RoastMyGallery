@@ -18,20 +18,26 @@ import Observation
 ///   After a spend we re-read the balance.
 ///
 /// ─────────────────────────────────────────────────────────────────────────
-/// CONFIG — replace these placeholders once the RevenueCat dashboard is set up:
-///   • `publicAPIKey`      → your RevenueCat *public* SDK key (safe to embed).
-///   • `gemCurrencyCode`→ must equal the Virtual Currency code you create.
-///   • Product identifiers in `ProductID` must match App Store Connect + the
-///     RevenueCat Offering exactly.
-///   • The backend needs REVENUECAT_SECRET_KEY + REVENUECAT_PROJECT_ID env vars.
+/// CONFIG — these four must agree, or the store silently breaks. If the paywall
+/// shows "Couldn't load the gem packs", start here:
+///   • `publicAPIKey`     → the RevenueCat *public* SDK key for this project.
+///   • `gemCurrencyCode`  → must equal the Virtual Currency code in RevenueCat
+///     (Product Catalog → Virtual Currencies).
+///   • `ProductID` cases  → must match App Store Connect *and* the RevenueCat
+///     Offering exactly, and each needs an associated-product grant configured
+///     in the dashboard or a purchase adds no gems.
+///   • Backend env vars   → REVENUECAT_SECRET_KEY + REVENUECAT_PROJECT_ID in
+///     Vercel. Without them every balance adjustment fails open (no-op), so
+///     purchases grant nothing and spends deduct nothing.
 /// ─────────────────────────────────────────────────────────────────────────
 @MainActor
 @Observable
 final class PurchaseManager {
-    // MARK: - CONFIG placeholders
+    // MARK: - CONFIG
 
-    /// RevenueCat public SDK key. Safe to ship in the binary (it can only read
-    /// and make purchases, never adjust balances). Replace with the real key.
+    /// RevenueCat public SDK key. Safe to ship in the binary: it can only read
+    /// and make purchases, never adjust balances (that needs the secret key,
+    /// which lives server-side only).
     static let publicAPIKey = "appl_LXxsWuCHpLypyIrEPTMOAnIIAVF"
 
     /// Virtual Currency code configured in RevenueCat (Product Catalog →
@@ -99,10 +105,10 @@ final class PurchaseManager {
     }
     var lastPurchaseResult: PurchaseResult?
 
-    /// Stable RevenueCat App User ID for this install — a Keychain-persisted ID
-    /// (see `KeychainAppUserID`) that survives app deletion on the same device,
-    /// so the gem balance is preserved across a reinstall. The backend uses it
-    /// to target the right customer for spends/grants.
+    /// Stable RevenueCat App User ID for this user — an iCloud-Keychain-persisted
+    /// ID (see `KeychainAppUserID`) that survives app deletion and follows them
+    /// to a new device, so the gem balance isn't lost either way. The backend
+    /// uses it to target the right customer for spends/grants.
     var appUserID: String { Purchases.isConfigured ? Purchases.shared.appUserID : "unconfigured" }
 
     private var customerInfoTask: Task<Void, Never>?
@@ -111,14 +117,14 @@ final class PurchaseManager {
 
     /// Call once, before any `Purchases.shared` use (see RoastMyGalleryApp).
     ///
-    /// Configures with a **stable, Keychain-persisted App User ID** (see
+    /// Configures with a **stable, iCloud-Keychain-persisted App User ID** (see
     /// `KeychainAppUserID`) instead of RevenueCat's default anonymous ID. The
     /// anonymous ID lives in UserDefaults and is wiped when the app is deleted,
-    /// so an anonymous user loses their (paid) gem balance on reinstall. A
-    /// Keychain-backed ID survives app deletion on the same device, so a delete
-    /// + reinstall resolves the same RevenueCat customer and the balance is
-    /// preserved. (Cross-device / new-phone continuity still needs a real
-    /// login into a stable RevenueCat identity.)
+    /// so an anonymous user loses their (paid) gem balance on reinstall. The
+    /// Keychain-backed ID survives app deletion *and* syncs to the user's other
+    /// devices, so both a reinstall and a new phone resolve the same RevenueCat
+    /// customer with its balance intact — see `KeychainAppUserID` for the cases
+    /// that still can't be covered without a real login.
     static func configure() {
         guard !Purchases.isConfigured else { return }
         #if DEBUG
@@ -264,22 +270,33 @@ final class PurchaseManager {
 
     // MARK: - Grants (via our backend, which holds the secret key)
 
-    /// First-launch starter gems. RevenueCat won't grant non-purchase
-    /// gems, so the backend issues a one-time positive adjustment. Guarded
-    /// locally so we ask at most once per install.
+    /// First-launch starter gems. RevenueCat won't grant non-purchase gems, so
+    /// the backend issues a one-time positive adjustment. The definitive dedupe
+    /// lives server-side (a permanent `claimOnce` marker — see
+    /// `backend/lib/idempotency.js`); this local flag only saves a redundant
+    /// round trip on later launches.
     ///
-    /// NOTE (hardening TODO): the definitive dedupe must live server-side —
-    /// the backend should check for a prior starter grant on this App User ID
-    /// before adding gems. The local flag only prevents repeat calls from
-    /// this install.
+    /// The flag is set ONLY on an outcome the server can vouch for. A 200 with
+    /// `granted: false` because the backend's RevenueCat env vars aren't set is
+    /// explicitly NOT one: latching on it would leave a brand-new user at zero
+    /// gems with every feature behind the paywall and no way back — the app
+    /// would look broken to them (and to App Review). Leaving the flag unset
+    /// costs one cheap POST per launch and lets the grant land by itself the
+    /// moment the backend is finished being configured.
     func ensureStarterGrant() async {
         guard Purchases.isConfigured else { return }
         let key = "didRequestStarterGrant"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
-        let ok = await GemBackendClient.starterGrant(appUserID: appUserID)
-        if ok {
+        switch await GemBackendClient.starterGrant(appUserID: appUserID) {
+        case .granted:
             UserDefaults.standard.set(true, forKey: key)
             await reconcileAfterSpend()
+        case .alreadyGranted:
+            // Server-confirmed: this user has had their starter gems (a
+            // reinstall resolving the same Keychain-backed ID lands here).
+            UserDefaults.standard.set(true, forKey: key)
+        case .unavailable:
+            break   // Retry on a later launch — deliberately no flag written.
         }
     }
 

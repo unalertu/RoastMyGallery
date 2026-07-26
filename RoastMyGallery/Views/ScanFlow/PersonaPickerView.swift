@@ -204,6 +204,11 @@ struct PersonaPickerView: View {
     /// Deep uploads the photos shown in the results for AI captions, so it
     /// requires explicit, unchecked-by-default consent every run — matching
     /// the app's contract that image uploads are always opt-in.
+    ///
+    /// This toggle is the FIRST of two gates and is deliberately not the one
+    /// that authorises an upload: which photos get sent isn't known until the
+    /// story exists, so the binding decision happens later, on
+    /// `CaptionReviewView`, where the user sees the actual batch.
     private var deepConsentCard: some View {
         Toggle(isOn: Binding(
             get: { scanViewModel.hasDeepConsent },
@@ -215,7 +220,7 @@ struct PersonaPickerView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text("Caption my photos with AI")
                     .font(Theme.Typography.headline)
-                Text("The handful of photos shown in your results — and only those — will be resized on your device and uploaded once for a short caption each. Your other photos never leave your phone; the story itself is built from anonymous stats.")
+                Text("Once your story is written, we'll show you the handful of photos it wants to caption. You approve that exact batch — or send none — before anything leaves your phone. The story itself is built from anonymous stats.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineSpacing(2)

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support — Roast My Gallery</title>
+<meta name="description" content="Help and contact for the Roast My Gallery iOS app.">
+<style>
+/* Tokens straight from design/web-theme.md — keep in sync with /privacy/ and
+   /terms/. Light only, matching the app (which forces Light Mode at the root). */
+:root {
+  --background: #FAF6F0;
+  --surface: #FFFFFF;
+  --accent: #C97B63;
+  --accent-soft: #F3DED7;
+  --text-primary: #3A3532;
+  --text-secondary: #8A817C;
+  --cream: #F4EDE3;
+  --radius-small: 12px;
+  --radius-card: 20px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", "Quicksand", system-ui,
+          -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 24px 48px;
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+}
+
+main { max-width: 680px; margin: 0 auto; }
+
+h1 {
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 48px 0 16px;
+}
+
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 24px 0 8px;
+}
+
+p { margin: 0 0 16px; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-soft);
+  transition: all 0.3s ease-in-out;
+}
+a:hover { opacity: 0.85; }
+
+/* The primary contact block — the one thing a visitor must not miss. */
+.contact {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin: 0 0 24px;
+  text-align: center;
+}
+.contact a {
+  font-size: 24px;
+  font-weight: 600;
+  border-bottom: none;
+  word-break: break-word;
+}
+
+.note {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+/* Quieter card for the FAQ body. */
+.faq {
+  background: var(--cream);
+  border-radius: var(--radius-card);
+  padding: 8px 24px 24px;
+  margin-top: 24px;
+}
+.faq h3:first-of-type { margin-top: 16px; }
+
+ol, ul { margin: 0 0 16px; padding-left: 24px; }
+li { margin-bottom: 8px; }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--accent-soft);
+  margin: 48px 0 24px;
+}
+
+footer {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Support</h1>
+  <p>Need help with <strong>Roast My Gallery</strong>? Email us and we'll get
+    back to you.</p>
+
+  <div class="contact">
+    <a href="mailto:roastmygallery@gmail.com">roastmygallery@gmail.com</a>
+  </div>
+
+  <p class="note">We read every message and aim to reply within a few business
+    days. It helps if you include your <strong>app version</strong>
+    (Settings&nbsp;→&nbsp;About&nbsp;→&nbsp;Version) and your <strong>iOS
+    version</strong> — the “Contact&nbsp;&amp;&nbsp;Feedback” row in the app
+    fills both in for you automatically.</p>
+
+  <h2>Common questions</h2>
+
+  <div class="faq">
+
+    <h3>I bought gems but my balance didn't go up</h3>
+    <p>Purchases are processed by Apple and the gems are added by our purchase
+      provider, so there can be a short delay. Try this in order:</p>
+    <ol>
+      <li>Fully close the app and reopen it — the balance is refreshed on
+        launch.</li>
+      <li>Tap your gem count (top right of Home), then <strong>Restore</strong>
+        at the bottom of that screen.</li>
+      <li>Still missing? Email us with the date of the purchase and we'll sort
+        it out.</li>
+    </ol>
+
+    <h3>I got a new phone — where did my gems go?</h3>
+    <p>Your gem balance is tied to an anonymous ID kept in your <strong>iCloud
+      Keychain</strong>, so it follows you to a new device automatically as long
+      as iCloud Keychain is turned on (iOS Settings → tap your name → iCloud,
+      then check that Passwords / Keychain syncing is enabled). If it was off
+      when you set up the new phone, email us and we'll help recover the
+      balance.</p>
+
+    <h3>How do I get a refund?</h3>
+    <p>All payments go through Apple, so refunds are handled by Apple — not by
+      us. Request one at
+      <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>.
+      If a feature charged you but failed to deliver, email us: we'll restore
+      the gems even though we can't issue money back.</p>
+
+    <h3>The analysis says it can't find any photos</h3>
+    <p>The app analyzes a slice of your library at a time — one month or album
+      for a Standard analysis, a date range for a Deep one — so an empty result
+      usually means that particular slice has no photos in it. Pick a different
+      range, or grant <strong>Full Access</strong> to your library
+      (iOS Settings → Privacy &amp; Security → Photos → Roast My Gallery); with
+      <em>Limited</em> access, albums stay hidden from the app.</p>
+
+    <h3>Something the AI wrote was offensive or wrong</h3>
+    <p>Tap <strong>Report this analysis</strong> at the bottom of any results
+      screen. It opens a pre-filled email containing the text in question so we
+      can see exactly what happened and tighten the writing rules that produced
+      it. You can edit or delete anything in that draft before sending it.</p>
+    <p>The stories are AI-generated for entertainment and can be wrong. They are
+      never advice of any kind.</p>
+
+    <h3>Are my photos uploaded anywhere?</h3>
+    <p>Not on a standard analysis — your photos are analyzed <strong>on your
+      device</strong>, and only anonymous statistics are sent to write your
+      story. Photos leave your phone only for the optional paid Deep Analysis
+      captions, and only after you have seen the exact photos and approved
+      them — you can remove any of them or decline entirely. They are never
+      stored on our servers. The full detail is in the <a href="/privacy/">Privacy Policy</a>,
+      and Settings → Privacy → <strong>Review what data was sent</strong> shows
+      the exact payload from your last analysis.</p>
+
+    <h3>How do I delete my data?</h3>
+    <p>Everything the app saves lives on your device. Settings → Data →
+      <strong>Delete all analysis history</strong> removes it, and deleting the
+      app removes the rest. We hold no copy of your analyses.</p>
+
+  </div>
+
+  <hr>
+
+  <footer>
+    <p><a href="/privacy/">Privacy Policy</a> · <a href="/terms/">Terms of
+      Use</a></p>
+    <p>Roast My Gallery is published by Ertuğrul Ünal.<br>
+      Contact: <a href="mailto:roastmygallery@gmail.com">roastmygallery@gmail.com</a></p>
+  </footer>
+
+</main>
+</body>
+</html>

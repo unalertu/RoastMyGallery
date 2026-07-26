@@ -1,0 +1,13 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "roastmygallery",
+	// Matches the compatibility_date reported by the live deployment
+	// (`wrangler versions view`), so redeploying can't change runtime behaviour.
+	"compatibility_date": "2025-01-01",
+	// Assets-only Worker: there is no `main`, because every route is a static
+	// file. `/privacy/` etc. are served from `<dir>/index.html`, which is what
+	// makes `/privacy` 307 to `/privacy/` — matching the live site exactly.
+	"assets": {
+		"directory": "./public"
+	}
+}

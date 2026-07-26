@@ -5,7 +5,7 @@
 //            segments: [{ photoIndexes: [int], text: string }],
 //            generatedAt: string (ISO 8601) }
 //
-// The Pro tier: the consented photo batch is forwarded to Gemini's
+// The hand-picked flow: the consented photo batch is forwarded to Gemini's
 // vision-capable model for photo-level commentary, then 5 CRD are deducted
 // via RevenueCat — AFTER success, never before (with a read-only balance
 // pre-check before the Gemini call so unaffordable requests fail fast).

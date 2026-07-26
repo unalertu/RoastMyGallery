@@ -22,4 +22,11 @@ enum AppConfig {
     /// Vercel env var. If the app ever gets real traction, replace with
     /// App Attest.
     static let appSharedSecret = "17ad313147db12c78c1c2191622e96bb6be43919ae3662b143ca65f109e9f8d9"
+
+    /// Public legal pages, served by the Cloudflare Worker that hosts the
+    /// app's site. Linked from the permission screen, the paywall and Settings
+    /// — kept here so a move to a custom domain is a one-line change instead of
+    /// a hunt through three views.
+    static let privacyPolicyURL = URL(string: "https://roastmygallery.unlertu.workers.dev/privacy/")!
+    static let termsOfUseURL = URL(string: "https://roastmygallery.unlertu.workers.dev/terms/")!
 }

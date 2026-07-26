@@ -192,7 +192,7 @@ struct DeepVisionFlowView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Send these photos for analysis")
                         .font(Theme.Typography.headline)
-                    Text("The \(runner.selection.count) photos you picked — and only those — will be resized on your device, uploaded once, and read by an AI service. Nothing else ever leaves your device, and nothing is stored on the server.")
+                    Text("The \(runner.selection.count) photos you picked — and only those — will be resized on your device and sent once to our AI provider, Google Gemini, to be read. They are not used to train any AI model. Nothing else ever leaves your device, and we don't keep a copy.")
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .lineSpacing(2)

@@ -29,7 +29,7 @@ struct ScanProgressView: View {
                 }
 
                 Text(isDeep
-                     ? "Scanning on your phone — only the photos you approved get sent for captions."
+                     ? "Scanning on your phone. Before any photo is sent for captions, you'll see exactly which ones and decide."
                      : "Everything stays on your device.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
@@ -63,7 +63,9 @@ struct ScanProgressView: View {
                 VStack(spacing: Theme.Spacing.s) {
                     Text("Captioning your photos")
                         .font(Theme.Typography.title)
-                    Text("Adding a note under each photo…")
+                    // Only the batch approved on `CaptionReviewView` is in
+                    // flight — "each photo" read as the whole date range.
+                    Text("Adding a note to the photos you approved…")
                         .font(Theme.Typography.body)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }

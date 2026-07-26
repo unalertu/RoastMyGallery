@@ -87,8 +87,10 @@ struct HomeView: View {
     /// working, in which case reopen it (starting fresh mid-run is how you'd
     /// pay twice).
     private func start(_ kind: AnalysisKind) {
-        // Not open yet — the card is non-tappable, but guard anyway.
-        guard !kind.isComingSoon else { return }
+        // Backstop: `analysisMenu` only ever renders launchable kinds, so this
+        // can't be reached from the UI — it keeps the invariant local to the
+        // one function that acts on it.
+        guard AnalysisKind.launchable.contains(kind) else { return }
         Haptics.primary()
         if scanViewModel.isRunActive {
             scanViewModel.presentFlow()
@@ -171,7 +173,7 @@ struct HomeView: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: Theme.Spacing.m) {
-                    ForEach(AnalysisKind.allCases) { kind in
+                    ForEach(AnalysisKind.launchable) { kind in
                         productCard(kind)
                     }
                 }
@@ -186,8 +188,7 @@ struct HomeView: View {
     }
 
     private func productCard(_ kind: AnalysisKind) -> some View {
-        let comingSoon = kind.isComingSoon
-        return Button { start(kind) } label: {
+        Button { start(kind) } label: {
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 HStack {
                     ZStack {
@@ -199,11 +200,7 @@ struct HomeView: View {
                             .foregroundStyle(Theme.Colors.kindText(kind))
                     }
                     Spacer()
-                    if comingSoon {
-                        soonChip
-                    } else {
-                        costChip(Self.cost(for: kind))
-                    }
+                    costChip(Self.cost(for: kind))
                 }
 
                 Text(kind.displayName)
@@ -216,34 +213,16 @@ struct HomeView: View {
                     .lineLimit(3, reservesSpace: true)
 
                 HStack(spacing: Theme.Spacing.xs) {
-                    if comingSoon {
-                        Text("Coming soon")
-                    } else {
-                        Text("Start")
-                        Image(systemName: "arrow.right")
-                    }
+                    Text("Start")
+                    Image(systemName: "arrow.right")
                 }
                 .font(Theme.Typography.label)
-                .foregroundStyle(comingSoon ? Theme.Colors.textSecondary : Theme.Colors.accent)
+                .foregroundStyle(Theme.Colors.accent)
             }
             .frame(width: 210, alignment: .leading)
             .themedCard()
-            .opacity(comingSoon ? 0.55 : 1)
         }
         .buttonStyle(.plain)
-        .disabled(comingSoon)
-        .accessibilityHint(comingSoon ? "Coming soon" : "")
-    }
-
-    /// Stands in for the cost chip on cards that aren't open to users yet.
-    private var soonChip: some View {
-        Text("SOON")
-            .font(Theme.Typography.label)
-            .tracking(0.5)
-            .foregroundStyle(Theme.Colors.textSecondary)
-            .padding(.horizontal, Theme.Spacing.s)
-            .padding(.vertical, Theme.Spacing.xs)
-            .background(Theme.Colors.textSecondary.opacity(0.12), in: Capsule())
     }
 
     /// Gem price in the same visual language as the balance pill.
@@ -273,7 +252,9 @@ struct HomeView: View {
         case .standard:
             return "Your story in 5–7 sharp beats. Ready in seconds."
         case .deep:
-            return "A 2–3× richer story over any date range, with an AI caption on every photo."
+            // Kept in step with the paywall's Deep row: captions are opt-in,
+            // limited to the photos the results show, and user-approved.
+            return "A 2–3× richer story over any date range. Optional AI captions on the photos in your results — you approve them first."
         case .handPicked:
             return "You pick up to 30 photos; the AI reads each one up close."
         }

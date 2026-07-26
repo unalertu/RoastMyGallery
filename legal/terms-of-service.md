@@ -1,10 +1,10 @@
 # Terms of Service — Roast My Gallery
 
-**Effective date:** [EFFECTIVE DATE]
-**Last updated:** [EFFECTIVE DATE]
+**Effective date:** July 18, 2026
+**Last updated:** July 18, 2026
 
 These Terms of Service ("Terms") are a legal agreement between you and
-**[PROVIDER NAME]** ("we," "us," or "our") governing your use of the
+**Ertuğrul Ünal** ("we," "us," or "our") governing your use of the
 **Roast My Gallery** mobile application and related services (the "App").
 
 **Please read these Terms carefully.** By downloading, accessing, or using the
@@ -76,7 +76,7 @@ You agree **not** to:
 You retain all rights to your own photos. The App processes your photos as
 described in the [Privacy Policy](privacy-policy.md): analysis happens on your
 device, and images are only uploaded when you explicitly opt in to Deep
-Analysis or Deep Vision.
+Analysis and approve the specific photos involved.
 
 By using the optional upload features, you grant us and our AI provider a
 limited license to process the images you submit **solely to generate your
@@ -89,7 +89,7 @@ choose to analyze.
 
 ---
 
-## 6. Purchases, virtual currency ("gems"), and subscriptions
+## 6. Purchases and virtual currency ("gems")
 
 All payments are processed by **Apple** through the App Store. We do not receive
 or store your payment card details.
@@ -113,27 +113,15 @@ unlock analyses and features.
   charged, contact us at **roastmygallery@gmail.com** and we will work in good
   faith to restore your balance or re‑deliver the feature.
 
-### 6.2 Subscriptions (auto‑renewable)
+### 6.2 No subscriptions
 
-If the App offers an auto‑renewable subscription:
+The App does **not** currently offer an auto‑renewing subscription. Everything it
+sells is a one‑time, consumable gem pack as described in Section 6.1 — nothing
+renews, and there is no recurring charge to cancel. If we ever introduce a
+subscription, we will update these Terms and disclose its price, billing period,
+and renewal and cancellation terms before you purchase.
 
-- Payment is charged to your Apple ID account at confirmation of purchase.
-- The subscription **automatically renews** unless canceled at least 24 hours
-  before the end of the current period. Your account is charged for renewal
-  within 24 hours prior to the end of the current period.
-- You can **manage or cancel** your subscription in your Apple ID **Account
-  Settings** at any time. Cancellation takes effect at the end of the current
-  billing period.
-- Any unused portion of a free trial, if offered, is forfeited when you
-  purchase a subscription.
-
-### 6.3 One‑time purchases
-
-If the App offers a one‑time ("lifetime") purchase, it grants the described
-entitlement for the applicable platform and account, subject to these Terms and
-the App Store rules.
-
-### 6.4 Refunds
+### 6.3 Refunds
 
 Purchases are handled by Apple. Refund requests are subject to **Apple's**
 policies and are made through Apple (for example, via
@@ -163,7 +151,7 @@ the above may not apply to you.
 
 ## 8. Limitation of liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, **[PROVIDER NAME]** AND ITS SUPPLIERS
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, **Ertuğrul Ünal** AND ITS SUPPLIERS
 WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR
 PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, OR GOODWILL, ARISING OUT OF OR
 RELATING TO YOUR USE OF (OR INABILITY TO USE) THE APP.
@@ -181,7 +169,7 @@ not apply to you.
 ## 9. Indemnification
 
 To the extent permitted by law, you agree to indemnify and hold harmless
-**[PROVIDER NAME]** from any claims, damages, or expenses (including reasonable
+**Ertuğrul Ünal** from any claims, damages, or expenses (including reasonable
 attorneys' fees) arising out of your misuse of the App, your violation of these
 Terms, or your violation of any law or the rights of a third party (including
 submitting images you do not have the right to use).
@@ -209,17 +197,18 @@ reasonable notice where appropriate.
 
 ## 12. Governing law
 
-These Terms are governed by the laws of the **State of [STATE], United States**,
-without regard to its conflict‑of‑laws rules, and applicable U.S. federal law.
-Subject to Section 13 (Apple) and any non‑waivable consumer protections in your
-place of residence, you agree that the state and federal courts located in
-**[COUNTY/STATE]** will have jurisdiction over disputes not otherwise resolved.
+These Terms are governed by the laws of the **State of California, United
+States**, without regard to its conflict‑of‑laws rules, and applicable U.S.
+federal law. Subject to Section 13 (Apple) and any non‑waivable consumer
+protections in your place of residence, you agree that the state and federal
+courts located in **Santa Clara County, California** will have jurisdiction over
+disputes not otherwise resolved.
 
 ---
 
 ## 13. Apple App Store — additional terms
 
-These Terms are between **you and [PROVIDER NAME] only, not with Apple Inc.
+These Terms are between **you and Ertuğrul Ünal only, not with Apple Inc.
 ("Apple")**. The following terms apply to your use of the App obtained through
 Apple's App Store:
 
@@ -255,5 +244,5 @@ Apple's App Store:
 
 ## 14. Contact
 
-**[PROVIDER NAME]**
+**Ertuğrul Ünal**
 Email: **roastmygallery@gmail.com**

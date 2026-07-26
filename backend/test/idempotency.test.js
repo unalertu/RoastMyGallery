@@ -261,7 +261,30 @@ test("starter-grant: grants once, then refuses repeats for the same user", async
   const repeat = await call(starterGrantHandler, { appUserId: "user-s" });
   assert.equal(repeat.statusCode, 200);
   assert.equal(repeat.body.granted, false);
+  // The client latches its "asked once" flag on exactly this reason, so it is
+  // part of the contract, not incidental detail.
+  assert.equal(repeat.body.reason, "already_granted");
   assert.equal(spends.get("user-s"), 1);
+});
+
+test("starter-grant: an unconfigured RevenueCat stays retryable and leaves no claim", async () => {
+  // The bug this guards: a fail-open skip that keeps its claim reads as
+  // "already_granted" forever after, so the user never receives the credits.
+  const savedSecret = process.env.REVENUECAT_SECRET_KEY;
+  delete process.env.REVENUECAT_SECRET_KEY;
+
+  const skipped = await call(starterGrantHandler, { appUserId: "user-v" });
+  assert.equal(skipped.statusCode, 200);
+  assert.equal(skipped.body.granted, false);
+  assert.equal(skipped.body.reason, "not_configured");
+  assert.equal(spends.has("user-v"), false);
+
+  // Configured later: the very next attempt must land, not be dedupe-blocked.
+  process.env.REVENUECAT_SECRET_KEY = savedSecret;
+  const retry = await call(starterGrantHandler, { appUserId: "user-v" });
+  assert.equal(retry.statusCode, 200);
+  assert.equal(retry.body.granted, true);
+  assert.equal(spends.get("user-v"), 1);
 });
 
 test("starter-grant: different users each get their own grant", async () => {

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full results for one analysis. Used in three places: the end of the scan
 /// flow, the Home tab's latest card, and History detail — all render the same
@@ -15,6 +16,7 @@ struct InsightView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(ScanViewModel.self) private var scanViewModel
     @Environment(DeepVisionRunner.self) private var deepVisionRunner
+    @Environment(\.openURL) private var openURL
 
     @State private var shareCardSet: ShareCardSet?
     /// True while the Full Story photos load + panels render (the two quick
@@ -23,6 +25,9 @@ struct InsightView: View {
     @State private var showPaywall = false
     @State private var paywallContext: PaywallView.Context = .general
     @State private var renderErrorMessage: String?
+    /// Set when the report draft can't be opened because the device has no mail
+    /// account — without this the button would just do nothing.
+    @State private var mailUnavailable = false
 
     var body: some View {
         ZStack {
@@ -58,6 +63,8 @@ struct InsightView: View {
                         deepAnalysisButton
                     }
                     .padding(.top, Theme.Spacing.s)
+
+                    reportRow
                 }
                 .padding(Theme.Spacing.l)
             }
@@ -77,6 +84,12 @@ struct InsightView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(renderErrorMessage ?? "")
+        }
+        .alert("No mail app set up", isPresented: $mailUnavailable) {
+            Button("Copy Address") { UIPasteboard.general.string = SupportMail.address }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Email \(SupportMail.address) and we'll look into it.")
         }
     }
 
@@ -169,37 +182,34 @@ struct InsightView: View {
         }
     }
 
+    /// Entry point into the hand-picked Deep Vision flow. Rendered only while
+    /// that flow is open to users (`AnalysisKind.launchable`) — until then it is
+    /// omitted entirely rather than shown as a disabled "coming soon" row, which
+    /// App Store Review Guideline 2.1 treats as placeholder UI.
     @ViewBuilder
     private var deepAnalysisButton: some View {
-        // Hand-Picked (Deep Vision) isn't open to users yet — show a disabled
-        // "coming soon" teaser instead of launching the flow. Drop this branch
-        // (and `AnalysisKind.handPicked.isComingSoon`) to open it back up.
-        if AnalysisKind.handPicked.isComingSoon {
-            Button {} label: {
-                Label("Hand-Pick Photos to Read · Coming soon", systemImage: "photo.badge.plus")
+        if AnalysisKind.launchable.contains(.handPicked) {
+            if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
+                Button {
+                    Haptics.primary()
+                    // Persona + stats inherited from this analysis; the flow is
+                    // presented by RootView's cover (over the whole tab shell),
+                    // so the run survives this screen going away.
+                    deepVisionRunner.beginFlow(persona: record.persona, sourceStats: record.stats)
+                } label: {
+                    Label("Hand-Pick Photos to Read · \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
+                }
+                .buttonStyle(SoftButtonStyle())
+            } else {
+                Button {
+                    Haptics.warning()
+                    paywallContext = .deepVision(have: purchaseManager.gemBalance)
+                    showPaywall = true
+                } label: {
+                    Label("Hand-Pick Photos to Read · needs \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
+                }
+                .buttonStyle(SoftButtonStyle())
             }
-            .buttonStyle(SoftButtonStyle())
-            .disabled(true)
-        } else if purchaseManager.canAfford(PurchaseManager.deepVisionCost) {
-            Button {
-                Haptics.primary()
-                // Persona + stats inherited from this analysis; the flow is
-                // presented by RootView's cover (over the whole tab shell),
-                // so the run survives this screen going away.
-                deepVisionRunner.beginFlow(persona: record.persona, sourceStats: record.stats)
-            } label: {
-                Label("Hand-Pick Photos to Read · \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
-            }
-            .buttonStyle(SoftButtonStyle())
-        } else {
-            Button {
-                Haptics.warning()
-                paywallContext = .deepVision(have: purchaseManager.gemBalance)
-                showPaywall = true
-            } label: {
-                Label("Hand-Pick Photos to Read · needs \(PurchaseManager.deepVisionCost) gems", systemImage: "photo.badge.plus")
-            }
-            .buttonStyle(SoftButtonStyle())
         }
     }
 
@@ -240,6 +250,34 @@ struct InsightView: View {
         if !isInScanFlow {
             scanViewModel.presentFlow()
         }
+    }
+
+    /// Reporting an analysis the AI got wrong. App Store Review Guideline 1.2
+    /// wants a reporting mechanism in any app that generates content; this is
+    /// it, and it's the reason the results screen is the place for it — the
+    /// content being reported is right above.
+    ///
+    /// Deliberately quiet: caption-sized, centered, below the actions. A roast
+    /// landing badly is rare, and an escape hatch styled like a primary button
+    /// would suggest otherwise.
+    private var reportRow: some View {
+        Button {
+            Haptics.tap()
+            guard let url = SupportMail.contentReportURL(for: record) else { return }
+            // A device with no mail account silently refuses `mailto:`, which
+            // would leave this button looking broken — fall back to showing the
+            // address instead.
+            openURL(url) { opened in
+                if !opened { mailUnavailable = true }
+            }
+        } label: {
+            Label("Report this analysis", systemImage: "exclamationmark.bubble")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Colors.textSecondary)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, Theme.Spacing.m)
     }
 
     private func renderShareCards() {

@@ -40,6 +40,20 @@ final class AnalysisHistoryStore {
         persist()
     }
 
+    /// Replaces an already-saved record in place, keeping its position.
+    ///
+    /// Exists because a deep run persists its story BEFORE the caption-approval
+    /// gate — that gate waits on a human, and a story the user has already paid
+    /// for must survive the app being killed while it sits on screen. Captions
+    /// then arrive later and are folded in here. A no-op if the record is gone
+    /// (the user cleared history mid-run), which is the correct outcome: don't
+    /// resurrect something they deleted.
+    func update(_ record: AnalysisRecord) {
+        guard let index = records.firstIndex(where: { $0.id == record.id }) else { return }
+        records[index] = record
+        persist()
+    }
+
     func deleteAll() {
         records = []
         persist()
