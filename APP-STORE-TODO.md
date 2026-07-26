@@ -207,9 +207,15 @@ batch. Uploaded images are processed in memory and are never stored or logged.
 
 ### Cihaz testi
 
-- [ ] Xcode console'da `rmg_` ara → uygulamayı kapat-aç → tekrar ara.
-      **İki açılışta aynı ID** olmalı (Keychain migration'ın kritik testi).
-      Farklıysa gem bakiyesi sıfırlanır — hemen bildir.
+- [x] ✅ **Keychain kimliği + satın alım kalıcılığı — doğrulandı 2026-07-26.**
+      Kapat-aç testinden daha güçlüsü yapıldı: 40 gem'lik bir sandbox satın
+      alımının ardından **uygulama tamamen silinip yeniden kuruldu** ve bakiye
+      419'da değişmeden kaldı. Aynı `rmg_` kimliği çözümlendiği için hem
+      satın alınan gem'ler korundu (Guideline 3.1.1) hem starter grant tekrar
+      verilmedi (KV işareti çalışıyor).
+- [x] ✅ **Starter grant tekrarlanmıyor** — yukarıdaki testin ikinci yarısı.
+      Aktivasyondan sonraki *ilk* sil-kur +6 vermişti (işareti yazan grant);
+      *ikincisi* vermedi. Beklenen davranış bu.
 - [ ] Standard analiz → 1 gem düşüyor mu, hikâye geliyor mu
 - [ ] Boş bir ay seç → "No photos found…" + **gem düşmemeli**
 - [ ] **Deep analiz → yeni onay ekranı.** Üç yolu da dene: *Send* /
@@ -217,9 +223,14 @@ batch. Uploaded images are processed in memory and are never stored or logged.
       hikâye kaydedilmeli, kaybolmamalı.
 - [ ] Sonuç ekranı → "Report this analysis" → mail taslağı açılıyor mu
       (Deep analizde de dene: orada 1500 karakter kırpması devreye giriyor)
-- [ ] 🔴 **Gerçek cihaz + sandbox'ta paywall** — ürünler yükleniyor mu.
-      Simulator yerel `.storekit` dosyasını kullandığı için bunu **kanıtlamaz**.
-      "Couldn't load the gem packs" görürsen reviewer da görür → 2.1 reddi.
+- [~] **Paywall + satın alma zinciri — büyük ölçüde doğrulandı 2026-07-26.**
+      40 gem'lik bir paket satın alındı ve bakiye gerçekten arttı. Bu, ürünlerin
+      yüklendiğini **ve** RevenueCat'in sunucu tarafı grant'inin tetiklendiğini
+      gösteriyor — yerel `.storekit` satın alması gem vermez (aşağıdaki
+      tuzaklara bak), dolayısıyla zincir uçtan uca çalışıyor.
+      **Kapatmadan önce teyit et:** bu satın alma **gerçek cihazda** mı yapıldı?
+      Simulator'daysa gerçek cihazda bir kez daha tekrarlanmalı — 2.1 reddinin
+      en yaygın sebebi budur.
 - [ ] Temiz kurulumda 3 starter gem geliyor mu. **Dikkat:** Keychain uygulama
       silinince silinmiyor — gerçek temiz test için Simulator'da
       "Erase All Content and Settings" ya da ikinci cihaz gerekiyor.
