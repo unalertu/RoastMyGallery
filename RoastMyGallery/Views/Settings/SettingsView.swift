@@ -405,10 +405,14 @@ private extension PHAuthorizationStatus {
 
     /// Says what the current state *costs the user*, not just what it is —
     /// "Limited" on its own doesn't explain why their albums vanished.
-    var settingsDetail: String {
+    ///
+    /// `nil` when access is full: there is nothing to fix and nothing to warn
+    /// about, so the row stays a bare title rather than reassuring the user
+    /// about something they never asked about.
+    var settingsDetail: String? {
         switch self {
         case .authorized:
-            return "Full access — albums and your whole library can be analyzed"
+            return nil
         case .limited:
             return "Limited — only the photos you picked. Albums stay hidden; tap to allow Full Access"
         case .denied:
