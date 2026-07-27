@@ -354,12 +354,15 @@ struct SettingsView: View {
     /// Names what actually arrives — a switch labelled only "Notifications"
     /// asks people to opt into an unknown — and says where to fix it when the
     /// answer isn't in this app.
+    /// No `.restricted` case here, unlike the photo permission below:
+    /// `UNAuthorizationStatus` has no such member. Its cases are
+    /// `.notDetermined`, `.denied`, `.authorized`, `.provisional` and
+    /// `.ephemeral` — a device-level block surfaces as `.denied`, which the
+    /// first case already covers.
     private var notificationsDetail: String {
         switch notificationStatus {
         case .denied:
             return "Turned off in iOS Settings — tap to turn them back on"
-        case .restricted:
-            return "Blocked by this device's restrictions"
         default:
             return "A monthly recap when a new month is ready, and a nudge if you drift away"
         }
