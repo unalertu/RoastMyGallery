@@ -19,7 +19,12 @@
 // - Batch order is the only reference shared with the client; the backend
 //   never sees asset identifiers.
 
-import { buildPhotoCaptionsPrompt, GEMINI_VISION_MODEL, PERSONA_PROMPTS } from "../lib/prompts.js";
+import {
+  buildPhotoCaptionsPrompt,
+  GEMINI_VISION_MODEL,
+  PERSONA_PROMPTS,
+  VISION_SAFETY_SETTINGS,
+} from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
 
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_VISION_MODEL}:generateContent`;
@@ -98,6 +103,11 @@ export default async function handler(req, res) {
         maxOutputTokens: 1024,
         responseMimeType: "application/json",
       },
+      // This call looks at real faces — see VISION_SAFETY_SETTINGS for why the
+      // threshold is pinned at MEDIUM rather than left to the API default.
+      // A block here costs one caption, never the story: captions are
+      // best-effort and the paid insight is already saved.
+      safetySettings: VISION_SAFETY_SETTINGS,
     }),
   };
 

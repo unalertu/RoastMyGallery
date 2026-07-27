@@ -17,7 +17,12 @@
 // - Photo indexes (position in the uploaded array) are the only reference
 //   shared with the client; the backend never sees asset identifiers.
 
-import { buildDeepVisionPrompt, GEMINI_VISION_MODEL, PERSONA_PROMPTS } from "../lib/prompts.js";
+import {
+  buildDeepVisionPrompt,
+  GEMINI_VISION_MODEL,
+  PERSONA_PROMPTS,
+  VISION_SAFETY_SETTINGS,
+} from "../lib/prompts.js";
 import { checkAppSecret, clientIP, allowRequest, allowDailyRequest } from "../lib/guard.js";
 import { spendCredits, getCreditBalance, CREDIT_COSTS } from "../lib/revenuecat.js";
 import { claimCharge, RUN_ID_PATTERN } from "../lib/idempotency.js";
@@ -106,6 +111,9 @@ export default async function handler(req, res) {
         maxOutputTokens: 2048,
         responseMimeType: "application/json",
       },
+      // Same reasoning as photo-captions: this call looks at real faces, so
+      // the threshold is pinned rather than inherited from the API default.
+      safetySettings: VISION_SAFETY_SETTINGS,
     }),
   };
 

@@ -24,6 +24,31 @@ export const GEMINI_VISION_MODEL = "gemini-3.5-flash";
  */
 export const GEMINI_DEEP_MODEL = "gemini-3.5-flash";
 
+/**
+ * Safety thresholds for the two calls that actually SEE a photo — photo
+ * captions and Deep Vision. Pinned explicitly instead of relying on the API
+ * default, for two reasons: a default can shift between model versions and
+ * silently move this app's line without anyone noticing, and these are the
+ * only requests where a model looks at a real person's face.
+ *
+ * MEDIUM, deliberately not LOW. The roast persona produces teasing by design,
+ * and a low-severity harassment threshold classifies ordinary playful roasting
+ * as a violation — a user would pay for a deep run and get blank captions
+ * back. MEDIUM leaves the humor alone and catches what actually matters:
+ * genuinely hostile or demeaning output aimed at a person.
+ *
+ * NOTE: the "never comment on appearance" rule is NOT enforced here. That's a
+ * product rule, not a safety category — no classifier flags "bold sweater
+ * choice" — so it lives in the prompts, where it's stated twice (the persona
+ * block and the caption/vision instructions).
+ */
+export const VISION_SAFETY_SETTINGS = [
+  { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+  { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+  { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+];
+
 export const PERSONA_PROMPTS = {
   roast: `You are a razor-sharp, witty friend looking at a summary of someone's photo library.
 Write a playful ROAST of their photo habits. Tease them mercilessly about their patterns —
