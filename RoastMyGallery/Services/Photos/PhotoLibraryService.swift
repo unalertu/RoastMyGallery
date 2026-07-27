@@ -8,6 +8,9 @@ protocol PhotoLibraryProviding: Sendable {
     func requestAuthorization() async -> PHAuthorizationStatus
     /// All image assets within the scope, newest first.
     func fetchAssets(in scope: AnalysisScope) -> PHFetchResult<PHAsset>
+    /// How many photos a scope holds, without loading any of them — used by
+    /// the pickers to warn before a gem is spent on a nearly-empty month.
+    func photoCount(in scope: AnalysisScope) -> Int
     /// Local identifiers of assets in the "Selfies" smart album, used to tag
     /// observations as selfies without any ML guesswork.
     func selfieAssetIDs() -> Set<String>
@@ -65,6 +68,13 @@ struct PhotoLibraryService: PhotoLibraryProviding {
         }
 
         return PHAsset.fetchAssets(with: options)
+    }
+
+    /// `PHFetchResult.count` is evaluated lazily by PhotoKit — it counts
+    /// matching assets without fetching them — so this is cheap enough to call
+    /// as the user spins a picker wheel.
+    func photoCount(in scope: AnalysisScope) -> Int {
+        fetchAssets(in: scope).count
     }
 
     func fetchUserAlbums() -> [AlbumInfo] {

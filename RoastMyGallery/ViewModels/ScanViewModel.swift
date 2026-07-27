@@ -124,6 +124,14 @@ final class ScanViewModel {
         environment.photoLibrary.fetchUserAlbums()
     }
 
+    /// A photo-counting function the scope pickers can call off the main actor
+    /// while a wheel spins. Hands out the (Sendable) library rather than the
+    /// view model itself, so counting never hops back to the main actor.
+    func makePhotoCounter() -> @Sendable (AnalysisScope) -> Int {
+        let library = environment.photoLibrary
+        return { scope in library.photoCount(in: scope) }
+    }
+
     /// Whether the user granted *limited* photo access. Album-scoped analysis
     /// can't enumerate album contents under limited access — PhotoKit only
     /// exposes the hand-picked selection, so every album reads as empty — so
@@ -424,6 +432,9 @@ final class ScanViewModel {
         // Counted here (real completions only) so the results screen's
         // automatic rating prompt never triggers off a free cache re-open.
         ReviewPrompter.recordCompletedRun()
+        // Pushes the drift nudge out — someone analyzing today doesn't need
+        // reminding in two weeks.
+        ReminderScheduler.noteAnalysisCompleted()
         if !isFlowPresented { backgroundCompletion = record }
         AnalysisNotifier.notifyCompletionIfBackgrounded(record)
     }

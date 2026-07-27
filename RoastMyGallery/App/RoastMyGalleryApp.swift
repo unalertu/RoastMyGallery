@@ -65,6 +65,10 @@ struct RoastMyGalleryApp: App {
                 // dark variant is a future design pass.
                 .preferredColorScheme(.light)
                 .task { await purchaseManager.bootstrap() }
+                // Recaps are only scheduled six months out and the drift nudge
+                // moves with each run, so the schedule is rebuilt every launch.
+                // No-op (and no permission prompt) unless the user opted in.
+                .task { await ReminderScheduler.refresh() }
         }
     }
 }

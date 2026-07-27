@@ -78,7 +78,7 @@ struct SettingsView: View {
             }
             Button("Not now", role: .cancel) {}
         } message: {
-            Text("To get a weekly re-scan reminder, turn on notifications for Roast My Gallery in iOS Settings.")
+            Text("To get your monthly recap reminder, turn on notifications for Roast My Gallery in iOS Settings.")
         }
         .onChange(of: monthlyReminderEnabled) { _, enabled in
             Haptics.selection()
@@ -217,7 +217,14 @@ struct SettingsView: View {
         // to switch to (the app forces Light Mode at the root meanwhile).
         SettingsSection(title: "Preferences") {
             Toggle(isOn: $monthlyReminderEnabled) {
-                SettingsRowLabel(icon: "bell", title: "Notifications", detail: nil)
+                // Says what arrives, not just "Notifications": a toggle that
+                // names the payoff is the difference between an opt-in and a
+                // shrug, and this one is off by default.
+                SettingsRowLabel(
+                    icon: "bell",
+                    title: "Monthly recap",
+                    detail: "A nudge when a new month is ready to analyze"
+                )
             }
             .tint(Theme.Colors.accent)
         }
