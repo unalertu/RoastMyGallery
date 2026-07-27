@@ -222,8 +222,6 @@ talimatları).
   canlıya almaz.
   </details>
 
-- [ ] Gemini API anahtarına **API kısıtlaması** koy (sadece Generative Language
-      API) — anahtar rotate edilmeyecek, bu riski küçültür.
 - [x] ~~Handoff dosyasını siteyi kuran Claude sohbetine gönder~~ — **gerek
       kalmadı.** Legal sayfalar 2026-07-26'da doğrudan deploy edildi (version
       `ac446486`). Site kaynağı artık `site/` altında, repoda.
@@ -309,23 +307,29 @@ batch. Uploaded images are processed in memory and are never stored or logged.
 - [x] ✅ **Starter grant tekrarlanmıyor** — yukarıdaki testin ikinci yarısı.
       Aktivasyondan sonraki *ilk* sil-kur +6 vermişti (işareti yazan grant);
       *ikincisi* vermedi. Beklenen davranış bu.
-- [ ] Standard analiz → 1 gem düşüyor mu, hikâye geliyor mu
-- [ ] Boş bir ay seç → "No photos found…" + **gem düşmemeli**
+- [x] ✅ Standard analiz → 1 gem düşüyor, hikâye geliyor *(2026-07-27)*
+- [x] ✅ Boş ay → "No photos found…" + **gem düşmüyor** *(2026-07-27)*.
+      Ücretlendirme başarıdan sonra yapıldığı için boş sonucun "başarı"
+      sayılmadığını doğrulayan test buydu.
 - [x] ✅ **Deep analiz onay ekranı — doğrulandı 2026-07-27.** Üç yol da denendi
       (*Send* / *Continue without captions* / **X ile kapat**), üçünde de hikâye
       kaydedildi. Gizlilik politikası, App Privacy label'ı ve 5.1.1 duruşunun
       dayandığı ekran bu — artık çalıştığı görülmüş durumda.
-- [ ] Sonuç ekranı → "Report this analysis" → mail taslağı açılıyor mu
-      (Deep analizde de dene: orada 1500 karakter kırpması devreye giriyor)
+- [x] ✅ Sonuç ekranı → "Report this analysis" → mail taslağı açılıyor
+      *(2026-07-27)*. Guideline 1.2'nin istediği bildirim yolu.
 - [x] ✅ **Paywall + satın alma zinciri — GERÇEK CİHAZDA doğrulandı 2026-07-26.**
       40 gem'lik paket gerçek cihazda sandbox üzerinden satın alındı ve bakiye
       arttı. Bu üçünü birden kanıtlıyor: ürünler yükleniyor (2.1 reddinin en
       yaygın sebebi kapandı), satın alma tamamlanıyor, ve RevenueCat'in sunucu
       tarafı grant'i tetikleniyor — yerel `.storekit` satın alması gem vermezdi.
-- [ ] Temiz kurulumda 6 starter gem geliyor mu. **Dikkat:** Keychain uygulama
-      silinince silinmiyor — gerçek temiz test için Simulator'da
-      "Erase All Content and Settings" ya da ikinci cihaz gerekiyor.
-- [ ] İkinci cihaz + iCloud Keychain açık → gem bakiyesi geliyor mu
+- [x] ✅ Temiz kurulumda 6 starter gem *(2026-07-27, kullanıcı beyanı)*
+- [x] ✅ İkinci cihaz + iCloud Keychain → bakiye geliyor *(2026-07-27, kullanıcı
+      beyanı)*
+
+  > Bu son iki madde kullanıcının "hepsi geçti" beyanına dayanıyor. Diğerleri
+  > gibi ayrıca gözlemlenmediler — ikisi de özel kurulum istiyor (Simulator'da
+  > "Erase All Content and Settings", ya da ikinci bir cihaz). Sorun çıkarsa
+  > önce buraya bak.
 
 ---
 
@@ -364,7 +368,7 @@ oynanacak şeyler değil). Yeni sohbette gündeme gelirse bağlam burada.
 | Nudity dedektörü (SCSensitivityAnalyzer) **eklenmedi** | `analysisPolicy`, kullanıcının Sensitive Content Warning ayarı kapalıysa `.disabled` dönüyor — yetişkinlerde varsayılan kapalı. Çoğu kullanıcıda hiç çalışmaz, yanlış güven verir. Onay ekranı gerçek çözüm |
 | Açılışta sözleşme/onay duvarı **yok** | Hiçbir şey gönderilmeden alınan blanket onay, GDPR'ın istediği "specific ve informed" rızadan daha zayıf. Apple da uygulama içi EULA kabulü istemiyor |
 | Bildirme akışı web formu değil, **mail** | Form endpoint + spam + şikâyet metnini sunucuda saklama demek; "kopyasını tutmuyoruz" iddiasıyla çelişirdi |
-| API anahtarı rotate **edilmiyor** | Kullanıcının kararı. Yerine API kısıtlaması öneriliyor |
+| Gemini anahtarı **olduğu gibi kalıyor** — ne rotate, ne kısıtlama | Kullanıcının kararı (2026-07-27), iki kez teyit edildi. Depodan sızmadığı doğrulandı: `backend/.env` takipsiz, git geçmişinin tamamında `AIza` dizesi yok. Gönderimi engelleyen bir şey değil. Kotada beklenmedik artış görülürse ilk bakılacak yer burası; o noktada tek gerçek çözüm rotate (yeni anahtar → Vercel `GEMINI_API_KEY` → `vercel --prod`) |
 | Destek sayfasındaki 3 taahhüt duruyor | Yanıt süresi, gem iadesi, eski telefon kurtarma yardımı |
 | ToS governing law California kalıyor | Canlı sayfayla eşitlendi; hukuki içerik değiştirilmedi |
 | Hand-Picked (Deep Vision) **kapalı** | `AnalysisKind.launchable`'da yok. Açmadan önce oradaki nota bak — sonuç ekranlarına "Report" satırı da gerekiyor |
