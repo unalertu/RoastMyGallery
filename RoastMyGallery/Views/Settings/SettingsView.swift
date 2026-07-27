@@ -1,9 +1,11 @@
 import Photos
 import SwiftUI
 import UIKit
+import UserNotifications
 
-/// Tab 3 — Plan, Preferences, Data, About, Privacy. Custom pastel sections
-/// (not Form) so it matches the design system.
+/// Tab 3 — Plan, Preferences, Data, About, Privacy, then the delete-history
+/// row on its own at the foot. Custom pastel sections (not Form) so it matches
+/// the design system.
 struct SettingsView: View {
     @Environment(PurchaseManager.self) private var purchaseManager
     @Environment(AnalysisHistoryStore.self) private var history
@@ -17,16 +19,32 @@ struct SettingsView: View {
     /// that case takes care of itself.)
     @State private var photoAccess = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
+    /// Mirrors the system notification permission, for the same reason
+    /// `photoAccess` does: once it's been decided, iOS Settings is the only
+    /// place it changes, so it has to be re-read on every activation.
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+
+    /// Set when the user flips the notification switch on while permission is
+    /// denied — we send them to iOS Settings, and if they come back with it
+    /// granted we finish the job they asked for instead of making them tap twice.
+    @State private var resumeNotificationsAfterSettings = false
+
     @State private var showPaywall = false
     @State private var showDeleteConfirmation = false
     @State private var showShareSheet = false
 
-    /// Shown when the user enables the reminder but notifications are off.
-    @State private var showNotificationDeniedAlert = false
+    /// Outcome of a Restore tap, success or failure. A restore that finishes
+    /// with no visible result reads as a broken button, which is worse than
+    /// not having one — so this always says something.
+    @State private var restoreMessage: String?
 
-    /// Drives the weekly reminder. Persisted so the row reflects the user's
-    /// choice, but the actual scheduling happens in `.onChange` below via
-    /// `ReminderScheduler` (which requests permission lazily, only here).
+    /// Flips the User ID row's subtitle to a confirmation for a beat after a
+    /// copy. A pasteboard write is otherwise completely invisible.
+    @State private var didCopyUserID = false
+
+    /// Whether this app's notifications are scheduled. Persisted, but it is
+    /// only half the story — the switch below shows this AND the system
+    /// permission, since either one being off means nothing arrives.
     @AppStorage("monthlyReminderEnabled") private var monthlyReminderEnabled = false
 
     var body: some View {
@@ -41,6 +59,9 @@ struct SettingsView: View {
                         dataSection
                         aboutSection
                         privacySection
+                        // Last thing on the page, on its own: the one action
+                        // here that destroys something.
+                        deleteHistorySection
                     }
                     .padding(Theme.Spacing.l)
                 }
@@ -52,11 +73,38 @@ struct SettingsView: View {
             .toolbarBackground(Theme.Colors.background, for: .navigationBar)
         }
         .tint(Theme.Colors.accent)
+        .task { await refreshNotificationStatus() }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             photoAccess = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            Task {
+                await refreshNotificationStatus()
+                // Came back from iOS Settings having granted permission —
+                // turn on what they were reaching for in the first place.
+                if resumeNotificationsAfterSettings, notificationStatus.allowsScheduling {
+                    resumeNotificationsAfterSettings = false
+                    monthlyReminderEnabled = true
+                    // Not just the flag: it may already have been true (they
+                    // revoked permission in iOS Settings while it was on), and
+                    // `.onChange` doesn't fire on a write that changes nothing.
+                    // Scheduling twice is a no-op — `refresh()` rebuilds from
+                    // fixed identifiers — so the overlap is safe.
+                    _ = await ReminderScheduler.enableReminder()
+                }
+            }
         }
         .sheet(isPresented: $showPaywall) { PaywallView() }
+        .alert(
+            "Restore Purchases",
+            isPresented: Binding(
+                get: { restoreMessage != nil },
+                set: { if !$0 { restoreMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(restoreMessage ?? "")
+        }
         .confirmationDialog(
             "Delete all analysis history?",
             isPresented: $showDeleteConfirmation,
@@ -70,30 +118,34 @@ struct SettingsView: View {
         } message: {
             Text("This removes every saved analysis from this device. It can't be undone.")
         }
-        .alert("Notifications are off", isPresented: $showNotificationDeniedAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    openURL(url)
-                }
-            }
-            Button("Not now", role: .cancel) {}
-        } message: {
-            Text("To get your monthly recap reminder, turn on notifications for Roast My Gallery in iOS Settings.")
-        }
         .onChange(of: monthlyReminderEnabled) { _, enabled in
-            Haptics.selection()
-            if enabled {
-                Task {
-                    let result = await ReminderScheduler.enableReminder()
-                    if result == .denied {
-                        // Permission unavailable — undo the toggle and explain.
-                        monthlyReminderEnabled = false
-                        showNotificationDeniedAlert = true
-                    }
-                }
-            } else {
+            guard enabled else {
                 ReminderScheduler.disableReminder()
+                return
             }
+            Task {
+                // Requests permission on the way in if it has never been asked.
+                let result = await ReminderScheduler.enableReminder()
+                if result == .denied {
+                    // They said no to the system prompt just now. Snap back
+                    // and let the row explain itself — following a fresh "no"
+                    // with an alert asking again is how you lose the second ask.
+                    monthlyReminderEnabled = false
+                }
+                await refreshNotificationStatus()
+            }
+        }
+    }
+
+    private func refreshNotificationStatus() async {
+        notificationStatus = await UNUserNotificationCenter.current()
+            .notificationSettings()
+            .authorizationStatus
+    }
+
+    private func openSystemSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            openURL(url)
         }
     }
 
@@ -128,6 +180,48 @@ struct SettingsView: View {
                 showPaywall = true
             }
             .buttonStyle(SoftButtonStyle())
+
+            Divider().overlay(Theme.Colors.background)
+
+            // Restore also sits in the paywall footer, where Guideline 3.1.1
+            // strictly requires it. It's duplicated here because that is where
+            // both App Review and a user who just reinstalled go looking for
+            // it, and neither should have to open a purchase screen to find it.
+            Button {
+                Haptics.tap()
+                Task { await restore() }
+            } label: {
+                HStack {
+                    SettingsRowLabel(
+                        icon: "arrow.clockwise",
+                        title: "Restore Purchases",
+                        detail: "Re-sync gems bought with this Apple Account"
+                    )
+                    Spacer()
+                    if purchaseManager.restoreInFlight {
+                        ProgressView().tint(Theme.Colors.textSecondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(purchaseManager.restoreInFlight)
+        }
+    }
+
+    /// `@MainActor` because `PurchaseManager` is — reading the balance and
+    /// clearing `lastError` are cross-actor accesses without it.
+    @MainActor
+    private func restore() async {
+        await purchaseManager.restorePurchases()
+        // Consume the error rather than leaving it set: the paywall renders
+        // `lastError` as a banner, and a failure already reported here should
+        // not greet the user again the next time they open it.
+        if let error = purchaseManager.lastError {
+            restoreMessage = error
+            purchaseManager.lastError = nil
+        } else {
+            let balance = purchaseManager.gemBalance
+            restoreMessage = "Your purchases are up to date. You have \(balance) \(balance == 1 ? "gem" : "gems")."
         }
     }
 
@@ -216,17 +310,58 @@ struct SettingsView: View {
         // Store Review Guideline 2.1 — so it's gone until there's a real theme
         // to switch to (the app forces Light Mode at the root meanwhile).
         SettingsSection(title: "Preferences") {
-            Toggle(isOn: $monthlyReminderEnabled) {
-                // Says what arrives, not just "Notifications": a toggle that
-                // names the payoff is the difference between an opt-in and a
-                // shrug, and this one is off by default.
+            Toggle(isOn: notificationsEnabled) {
                 SettingsRowLabel(
-                    icon: "bell",
-                    title: "Monthly recap",
-                    detail: "A nudge when a new month is ready to analyze"
+                    icon: notificationStatus.allowsScheduling ? "bell" : "bell.slash",
+                    title: "Notifications",
+                    detail: notificationsDetail,
+                    tint: notificationStatus == .denied
+                        ? Theme.Colors.danger
+                        : Theme.Colors.textPrimary
                 )
             }
             .tint(Theme.Colors.accent)
+        }
+    }
+
+    /// The switch reads the *effective* state — our schedule AND the system
+    /// permission — because a row showing "on" while iOS is dropping every
+    /// notification is just a lie the user discovers weeks later.
+    ///
+    /// Turning it on when permission was denied can't be done from in here at
+    /// all, so that tap goes straight to iOS Settings rather than bouncing off
+    /// an alert first; `resumeNotificationsAfterSettings` finishes the job on
+    /// the way back.
+    private var notificationsEnabled: Binding<Bool> {
+        Binding(
+            get: { monthlyReminderEnabled && notificationStatus.allowsScheduling },
+            set: { wantsOn in
+                Haptics.selection()
+                guard wantsOn else {
+                    monthlyReminderEnabled = false
+                    return
+                }
+                if notificationStatus == .denied {
+                    resumeNotificationsAfterSettings = true
+                    openSystemSettings()
+                } else {
+                    monthlyReminderEnabled = true
+                }
+            }
+        )
+    }
+
+    /// Names what actually arrives — a switch labelled only "Notifications"
+    /// asks people to opt into an unknown — and says where to fix it when the
+    /// answer isn't in this app.
+    private var notificationsDetail: String {
+        switch notificationStatus {
+        case .denied:
+            return "Turned off in iOS Settings — tap to turn them back on"
+        case .restricted:
+            return "Blocked by this device's restrictions"
+        default:
+            return "A monthly recap when a new month is ready, and a nudge if you drift away"
         }
     }
 
@@ -244,9 +379,16 @@ struct SettingsView: View {
                 )
             }
             .buttonStyle(.plain)
+        }
+    }
 
-            Divider().overlay(Theme.Colors.background)
+    // MARK: - Delete history
 
+    /// Sits alone at the very bottom, headerless: the standard iOS place for
+    /// the one irreversible action on a settings screen, far from anything a
+    /// user is scrolling *to*.
+    private var deleteHistorySection: some View {
+        SettingsSection(title: nil) {
             Button {
                 Haptics.tap()
                 showDeleteConfirmation = true
@@ -277,6 +419,38 @@ struct SettingsView: View {
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
+
+            Divider().overlay(Theme.Colors.background)
+
+            // The only string that identifies this customer to us. Without it,
+            // a "my gems are gone" email is unanswerable — there is no account,
+            // no email, nothing else to look them up by. Shown middle-truncated
+            // because it's for copying, not reading.
+            Button {
+                UIPasteboard.general.string = purchaseManager.appUserID
+                Haptics.success()
+                didCopyUserID = true
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    didCopyUserID = false
+                }
+            } label: {
+                HStack {
+                    SettingsRowLabel(
+                        icon: "person.text.rectangle",
+                        title: "User ID",
+                        detail: didCopyUserID ? "Copied to clipboard" : "Tap to copy — include it when you contact support"
+                    )
+                    Spacer(minLength: Theme.Spacing.m)
+                    Text(purchaseManager.appUserID)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 96, alignment: .trailing)
+                }
+            }
+            .buttonStyle(.plain)
 
             Divider().overlay(Theme.Colors.background)
 
@@ -343,16 +517,20 @@ struct SettingsView: View {
 // MARK: - Section & row building blocks
 
 private struct SettingsSection<Content: View>: View {
-    let title: String
+    /// `nil` for a card that stands on its own — the trailing delete row has
+    /// nothing to group with and no header worth reading.
+    let title: String?
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             // Same section-header language as Home's "New Analysis" /
             // "Earlier Analysis" — one pattern across tabs.
-            Text(title)
-                .font(Theme.Typography.headline)
-                .padding(.leading, Theme.Spacing.xs)
+            if let title {
+                Text(title)
+                    .font(Theme.Typography.headline)
+                    .padding(.leading, Theme.Spacing.xs)
+            }
 
             VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                 content
@@ -385,6 +563,20 @@ private struct SettingsRowLabel: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Notification permission presentation
+
+private extension UNAuthorizationStatus {
+    /// True when iOS will actually deliver what we schedule. `.notDetermined`
+    /// counts: nothing is blocked yet, and flipping the switch is what triggers
+    /// the system prompt (see `ReminderScheduler`'s lazy permission policy).
+    var allowsScheduling: Bool {
+        switch self {
+        case .authorized, .provisional, .ephemeral, .notDetermined: return true
+        default: return false
         }
     }
 }
