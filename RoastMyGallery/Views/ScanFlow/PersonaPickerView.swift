@@ -84,7 +84,7 @@ struct PersonaPickerView: View {
             PaywallView(context: paywallContext)
         }
         .sheet(isPresented: $showMonthPicker) {
-            MonthPickerSheet { scope in
+            MonthPickerSheet(countPhotos: scanViewModel.makePhotoCounter()) { scope in
                 scanViewModel.selectedScope = scope
             }
         }
@@ -97,7 +97,7 @@ struct PersonaPickerView: View {
             }
         }
         .sheet(isPresented: $showDateRangePicker) {
-            DateRangePickerSheet { scope in
+            DateRangePickerSheet(countPhotos: scanViewModel.makePhotoCounter()) { scope in
                 scanViewModel.selectedScope = scope
             }
         }
@@ -357,12 +357,19 @@ private struct MonthPickerSheet: View {
 
     @State private var selectedMonthIndex: Int
     @State private var selectedYear: Int
+    /// Live photo count for the month on the wheels, so nobody spends a gem on
+    /// an empty (or nearly empty) month without being told.
+    @State private var volume: ScopeVolumeCounter
 
-    init(onSelect: @escaping (AnalysisScope) -> Void) {
+    init(
+        countPhotos: @escaping @Sendable (AnalysisScope) -> Int,
+        onSelect: @escaping (AnalysisScope) -> Void
+    ) {
         self.onSelect = onSelect
         let now = Date()
         _selectedMonthIndex = State(initialValue: Self.calendar.component(.month, from: now) - 1)
         _selectedYear = State(initialValue: Self.calendar.component(.year, from: now))
+        _volume = State(initialValue: ScopeVolumeCounter(countPhotos: countPhotos))
     }
 
     var body: some View {
@@ -388,6 +395,11 @@ private struct MonthPickerSheet: View {
                     .pickerStyle(.wheel)
                 }
 
+                if let count = volume.count {
+                    ScopeVolumeNote(count: count, depth: .standard, scopeLabel: monthLabel)
+                        .transition(.opacity)
+                }
+
                 Spacer()
 
                 Button("Use \(monthLabel)") {
@@ -396,6 +408,9 @@ private struct MonthPickerSheet: View {
                     dismiss()
                 }
                 .buttonStyle(PrimaryButtonStyle())
+                // An empty month can only fail mid-scan; everything else is
+                // the user's call to make.
+                .disabled(volume.count == 0)
             }
             .padding(Theme.Spacing.l)
             .toolbar {
@@ -408,6 +423,9 @@ private struct MonthPickerSheet: View {
         }
         .tint(Theme.Colors.accent)
         .foregroundStyle(Theme.Colors.textPrimary)
+        // Fires on appear and on every wheel change; the counter debounces.
+        .task(id: scope) { volume.update(for: scope) }
+        .animation(Theme.motion, value: volume.count)
     }
 
     private var monthLabel: String {

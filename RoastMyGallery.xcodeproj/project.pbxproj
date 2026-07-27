@@ -17,6 +17,7 @@
 		2162335D78235AD8F47A399D /* PhotoObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1CA7764A5164F125384325C /* PhotoObservation.swift */; };
 		2B0D1AB68B31C2812B3D98DF /* AltShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 488ECB643B7E303D3BD26771 /* AltShareCardView.swift */; };
 		2B47D6B577124515C484EC99 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B274EEF63DC04E59D165CE6A /* AppEnvironment.swift */; };
+		2D8CF337234DAF48727BA1B7 /* ScopeVolumeNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249A3AF20DE5AD889ECFD8DC /* ScopeVolumeNote.swift */; };
 		30FA71D948D160D35108DEEB /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119970B71BED79F8605050D5 /* PurchaseManager.swift */; };
 		357CCEC28C98094F02D6EB3F /* PersonaPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EBBFC8D04FB9AF897AAF6 /* PersonaPickerView.swift */; };
 		3AC6BF786463F24E9F67E694 /* DeepVisionFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 660E80DE75CEF7CBE7B627CF /* DeepVisionFlowView.swift */; };
@@ -80,6 +81,7 @@
 		119970B71BED79F8605050D5 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		186BCF0310CD1A85AAA53D7B /* ScanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanViewModel.swift; sourceTree = "<group>"; };
 		1A629FEE6911A9931946A382 /* CaptionReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptionReviewView.swift; sourceTree = "<group>"; };
+		249A3AF20DE5AD889ECFD8DC /* ScopeVolumeNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopeVolumeNote.swift; sourceTree = "<group>"; };
 		2CD9124F8662BEA53F54CFA4 /* Insight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Insight.swift; sourceTree = "<group>"; };
 		2E2D4D4E66A3AC68DD14694D /* AnalysisNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisNotifier.swift; sourceTree = "<group>"; };
 		32248AE685C2C6DD04C4A991 /* SegmentPhotoResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentPhotoResolver.swift; sourceTree = "<group>"; };
@@ -355,6 +357,7 @@
 				EA440A4424BA8873DF6FC01F /* AnalysisStatusBanner.swift */,
 				A9621FDF6B5964282E602ED2 /* EmptyStateView.swift */,
 				D6C9DD77212A4EBE0383D1E7 /* PhotoZoomOverlay.swift */,
+				249A3AF20DE5AD889ECFD8DC /* ScopeVolumeNote.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -552,6 +555,7 @@
 				687631524D18BC6854119C19 /* ScanFlowView.swift in Sources */,
 				A82D9B718034891D86C30127 /* ScanProgressView.swift in Sources */,
 				692519557F8CFE904EA3FB6A /* ScanViewModel.swift in Sources */,
+				2D8CF337234DAF48727BA1B7 /* ScopeVolumeNote.swift in Sources */,
 				E62D33E563484964E6794F06 /* SegmentPhotoResolver.swift in Sources */,
 				0A54DB53AE8AE169D8C8C601 /* SettingsView.swift in Sources */,
 				D7AB52BA330B316F634BC87D /* ShareCardDebug.swift in Sources */,

@@ -26,9 +26,17 @@ struct DateRangePickerSheet: View {
     @State private var fromYear: Int
     @State private var toMonthIndex: Int
     @State private var toYear: Int
+    /// Live photo count for the chosen range. Deep costs 5 gems and asks the
+    /// model for 12–16 beats, so a thin range is a far more expensive mistake
+    /// here than on the standard month picker.
+    @State private var volume: ScopeVolumeCounter
 
-    init(onSelect: @escaping (AnalysisScope) -> Void) {
+    init(
+        countPhotos: @escaping @Sendable (AnalysisScope) -> Int,
+        onSelect: @escaping (AnalysisScope) -> Void
+    ) {
         self.onSelect = onSelect
+        _volume = State(initialValue: ScopeVolumeCounter(countPhotos: countPhotos))
         // Default to the last 12 months — the full range deep analysis covers.
         let now = Date()
         let to = (month: Self.calendar.component(.month, from: now) - 1,
@@ -75,7 +83,7 @@ struct DateRangePickerSheet: View {
                     dismiss()
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .disabled(!isValid)
+                .disabled(!isValid || volume.count == 0)
             }
             .padding(Theme.Spacing.l)
             .toolbar {
@@ -90,6 +98,14 @@ struct DateRangePickerSheet: View {
         .foregroundStyle(Theme.Colors.textPrimary)
         .animation(Theme.motion, value: isValid)
         .animation(Theme.motion, value: monthCount)
+        .animation(Theme.motion, value: volume.count)
+        // Fires on appear and on every wheel change; the counter debounces.
+        // An inverted or over-long range has nothing worth counting — its own
+        // warning already owns the summary line.
+        .task(id: scope) {
+            guard isValid else { return }
+            volume.update(for: scope)
+        }
     }
 
     // MARK: - Pieces
@@ -121,12 +137,22 @@ struct DateRangePickerSheet: View {
     }
 
     /// Live range summary; flips into a warning when the range is invalid.
+    /// A valid range also reports how many photos are actually in it — the
+    /// month span alone says nothing about whether there's material to write
+    /// about (twelve empty months are still twelve months).
     @ViewBuilder
     private var summaryLine: some View {
         if isValid {
-            Text("\(rangeLabel) · \(monthCount == 1 ? "1 month" : "\(monthCount) months")")
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.textSecondary)
+            VStack(spacing: Theme.Spacing.xs) {
+                Text("\(rangeLabel) · \(monthCount == 1 ? "1 month" : "\(monthCount) months")")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                if let count = volume.count {
+                    ScopeVolumeNote(count: count, depth: .deep, scopeLabel: rangeLabel)
+                        .transition(.opacity)
+                }
+            }
         } else {
             Label(
                 monthCount < 1
