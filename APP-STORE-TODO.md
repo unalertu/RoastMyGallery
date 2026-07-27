@@ -92,7 +92,100 @@ kendiyle çelişiyordu. Hem `legal/*.md`'de hem canlıda tamamlandı.
 
 ---
 
+## ✅ 2026-07-27 oturumu — yapılanlar
+
+Hepsi kodda, **hiçbiri commit'lenmedi ve backend deploy edilmedi** (bkz. aşağıdaki
+"Hemen yapılacaklar").
+
+| Konu | Ne yapıldı |
+|---|---|
+| Rate bildirimi | Otomatik App Store puanlama isteği eklendi (`ReviewPrompter.swift` — ≥2 tamamlanmış analiz, sürüm başına bir kez, sonuç ekranında 2 sn gecikmeli). Ayarlar'daki "Rate this app" ise artık `requestReview()` yerine App Store yorum sayfasını **doğrudan** açıyor (Apple sistem penceresini yılda ~3 kez gösterip sonra sessizce yutuyor; butona basan hep bir şey görmeli) |
+| App Store ID | `6791121107` işlendi — Share linki ve Rate linki. Sahte `id0000000000` gitti |
+| project.yml | `DEVELOPMENT_TEAM: J7L764Z34L`, `MARKETING_VERSION: "1.0"`, bundle ID notu. Artık `xcodegen generate` imza ayarını silmiyor |
+| Paywall | Kapalı özelliği satıyordu ("5 gems = 1 Deep Vision batch") → **Deep Analysis**'e çevrildi. Paket kartı alt yazısı sadeleşti: "= 40 analyses" |
+| StoreKit config | `credits_pack_20/50` → `credits_pack_10/40` (koddaki paketlerle eşleşiyordu değil) |
+| Starter grant | **Sunucu taraflı kalıcı tekilleştirme** (`claimOnce`/`releaseOnce` — reinstall veya elle istek artık +6 gem veremiyor). Grant başarısız olursa claim geri bırakılıyor, kullanıcı hakkını kaybetmiyor. 2 yeni test |
+| Bildirimler | Haftalık genel hatırlatıcı → **aylık recap + uzaklaşma dürtmesi**. Detay aşağıda |
+| Az foto uyarısı | Ay ve tarih-aralığı seçicilerinde canlı fotoğraf sayısı + uyarı. Detay aşağıda |
+| AI güvenliği | Fotoğraf gören iki uç noktaya (`photo-captions`, `deep-vision`) `safetySettings` **MEDIUM** seviyesinde sabitlendi |
+
+### Bildirim mantığı — neden değişti
+
+Eskisi: her Pazar 11:00, *"This week's photos are waiting to be roasted."*
+İki sorunu vardı. Birincisi metin **ürünün yapamadığı bir şeyi** vaat ediyordu —
+Standard analiz haftayı analiz edemiyor, `PersonaPickerView.canStart` ay veya
+albüm istiyor. İkincisi genel bir mesajı sık göndermek açılma oranını değil
+**kapatma oranını** artırır, ve iOS'ta bildirimi kapatan kullanıcı kalıcı olarak
+kaybedilir.
+
+Yenisi (`ReminderScheduler.swift`, tek Ayarlar anahtarının arkasında):
+1. **Aylık recap** — her ayın 1'inde 11:00, biten ayın **adıyla** ("April is a
+   wrap"). Ürünün gerçek birimiyle (ay) örtüşüyor. Ay adını taşıyabilmesi için
+   6 ay ileri tek tek planlanıyor, her açılışta `refresh()` ile yenileniyor.
+2. **Uzaklaşma dürtmesi** — son analizden 14 gün sonra, tek seferlik. Her
+   tamamlanan analizde ileri itiliyor (`noteAnalysisCompleted()`), yani aktif
+   kullanıcı hiç almıyor.
+
+Kişi başı ayda 1–2 bildirim. Eşikler dosyanın başındaki sabitlerde.
+**Bilinçli olarak bildirimde gem satılmıyor:** Guideline 4.5.4 push'u ayrı
+onay olmadan reklam/promosyon için yasaklıyor. Bildirimin işi analiz
+yaptırmak; tüketilebilir ekonomide satın alma bakiye bitince kendiliğinden
+geliyor.
+
+### Az foto uyarısı — neden eklendi
+
+Backend prompt'u veri ne kadar az olursa olsun **sabit sayıda beat** yazıyor
+("even for a small library, write the full 5-7 beats"). Yani 8 fotoğraflık bir
+ay kısa hikâye değil, **dolgu** hikâye üretiyor — ve gem tahsil ediliyor.
+Ay seçicide fotoğraf sayısı hiç gösterilmiyordu (albüm seçicide gösteriliyor).
+
+`ScopeVolumeNote.swift` + `AnalysisDepth.sufficiency(forPhotoCount:)`:
+- **0 foto** → kırmızı uyarı, onay butonu kapalı (o run zaten `emptyLibrary` ile
+  patlardı)
+- **Eşiğin altı** → turuncu "Only 12 photos — the story will be short", buton
+  **açık** (9 fotoluk tatil albümünü okutmak isteyen olabilir; engellemek değil
+  beklenti kurmak istiyoruz)
+- **Yeterli** → nötr gri sayı
+
+Eşikler: Standard **25**, Deep **120** (Deep 12–16 beat ve ≥8 kategori istiyor,
+üstelik 5 gem). Sayım PhotoKit'in tembel `count`'u, 250 ms debounce'lu ayrı
+task'ta — tekerlek dönerken UI takılmıyor.
+
+### AI güvenlik ayarı — neden MEDIUM, neden LOW değil
+
+Fotoğraf **sadece** Deep Analysis'in caption adımında AI'a gidiyor (hikâyenin
+kendisi hep fotoğrafsız yazılıyor, sadece anonim sayılarla). Yani "görünüşle
+dalga geçme" riski **tek** bir yerde var.
+
+`VISION_SAFETY_SETTINGS` (lib/prompts.js) MEDIUM'da sabitlendi. **LOW'a
+çekilmedi** çünkü roast, sınıflandırıcı gözünde zaten hafif tacizdir — LOW
+sıradan şakaları da bloklardı ve kullanıcı 5 gem verip boş caption görürdü.
+Asıl kazanç sıkılık değil, **açıkça sabitlenmiş** olması: Google'ın varsayılanı
+model sürümleri arasında sessizce değişebilir.
+
+"Görünüşe yorum yapma" kuralı **kasten filtreye verilmedi** — o bir güvenlik
+kategorisi değil, ürün kuralı; hiçbir sınıflandırıcı "cesur kazak seçimi"ni
+işaretlemez. O kural prompt'ta iki yerde duruyor (persona bloğu + caption
+talimatları).
+
+---
+
 ## Senin yapacakların
+
+### ⚠️ Hemen — bu oturumun işi yarım kalmasın
+
+- [ ] **Backend'i deploy et:** `cd backend && vercel --prod`. `safetySettings`
+      değişikliği **canlıda değil**. Panelden "Redeploy" işe yaramaz — eski
+      kodu yayınlar (bkz. aşağıdaki KV notundaki ders).
+- [ ] **Xcode'da bir kez derle.** Bu oturumda 1 yeni dosya eklendi
+      (`ScopeVolumeNote.swift`, `xcodegen generate` çalıştırıldı) ve
+      `ReminderScheduler` baştan yazıldı. Derleme yapılmadı — CLAUDE.md gereği
+      Claude derlemiyor. SourceKit'in "Cannot find 'Theme' in scope" hataları
+      sahte, build'de geçiyor.
+- [ ] **Bildirimleri test et:** Ayarlar → "Monthly recap" aç → izin ver.
+      Aylık recap'i beklemeden görmek için cihaz tarihini ayın 1'ine al.
+- [ ] **Az foto uyarısını test et:** ay seçicide fotoğrafı olmayan eski bir ay
+      seç (buton kapanmalı) ve 10-20 fotoluk bir ay seç (turuncu uyarı).
 
 ### Hızlı (birkaç dakika)
 
@@ -228,10 +321,37 @@ batch. Uploaded images are processed in memory and are never stored or logged.
       arttı. Bu üçünü birden kanıtlıyor: ürünler yükleniyor (2.1 reddinin en
       yaygın sebebi kapandı), satın alma tamamlanıyor, ve RevenueCat'in sunucu
       tarafı grant'i tetikleniyor — yerel `.storekit` satın alması gem vermezdi.
-- [ ] Temiz kurulumda 3 starter gem geliyor mu. **Dikkat:** Keychain uygulama
+- [ ] Temiz kurulumda 6 starter gem geliyor mu. **Dikkat:** Keychain uygulama
       silinince silinmiyor — gerçek temiz test için Simulator'da
       "Erase All Content and Settings" ya da ikinci cihaz gerekiyor.
 - [ ] İkinci cihaz + iCloud Keychain açık → gem bakiyesi geliyor mu
+
+---
+
+## Açık sorular — release'i bloklamaz, sonra bakılacak
+
+Üçü de 2026-07-27'de incelendi, **bilerek dokunulmadı** (release öncesi
+oynanacak şeyler değil). Yeni sohbette gündeme gelirse bağlam burada.
+
+- **Deep sessizce ucuz modele düşebiliyor.** `insight.js` deep için önce
+  `gemini-3.5-flash` deniyor, **herhangi bir hatada** `gemini-3.1-flash-lite`'a
+  düşüyor. Yani 5 gem ödeyen kullanıcının hikâyesini bazen Standard'ın modeli
+  yazıyor — ne kullanıcı anlıyor ne sen. Takas savunulabilir (ödenmiş analizi
+  tamamen başarısız etmektense zayıf metin), ama **ne sıklıkta olduğu
+  bilinmiyor.** Yayından sonra Vercel loglarında `Gemini 503 on
+  gemini-3.5-flash` satırlarını say. Sıksa asıl düzeltilecek şey budur.
+  İstenirse yanıta "hangi model yazdı" işareti eklenebilir (kullanıcıya
+  görünmez, sadece ölçüm).
+- **Vision güven eşiği 0.4** (`OnDeviceAnalyzer.classificationThreshold`).
+  Gösterilen fotoğraf için sorun değil (zaten en yüksek güvenli seçiliyor) ama
+  **sayıları şişirebilir** — "312 yemek fotoğrafın var" derken bir kısmı 0.41
+  güvenli tahmin olabilir. Ürünün tüm güvenilirliği sayıların isabetli
+  hissettirmesine bağlı. Kendi galerinde bakıp şişik geliyorsa 0.5'e çıkar.
+- **Deep'te `thinkingConfig: { thinkingBudget: 0 }`** (`insight.js`). JSON'un
+  yarıda kesilmesini önlemek için konmuştu, ama o sorun `maxOutputTokens`
+  1024→8192 ile de çözülmüş. Küçük bir thinking bütçesi Deep'in **konu
+  seçimini** iyileştirebilir (metin kalitesini değil — bu bir yazarlık işi,
+  muhakeme işi değil). Yayından sonra denenebilir; garanti kazanç değil.
 
 ---
 
@@ -247,6 +367,9 @@ batch. Uploaded images are processed in memory and are never stored or logged.
 | Destek sayfasındaki 3 taahhüt duruyor | Yanıt süresi, gem iadesi, eski telefon kurtarma yardımı |
 | ToS governing law California kalıyor | Canlı sayfayla eşitlendi; hukuki içerik değiştirilmedi |
 | Hand-Picked (Deep Vision) **kapalı** | `AnalysisKind.launchable`'da yok. Açmadan önce oradaki nota bak — sonuç ekranlarına "Report" satırı da gerekiyor |
+| Bildirimde gem **satılmıyor** | Guideline 4.5.4: push, ayrı uygulama içi onay olmadan reklam/promosyon için kullanılamaz. Bildirim analiz yaptırır; satın alma bakiye bitince gelir |
+| Az fotoğraflı ay **engellenmiyor** | Sadece 0 foto butonu kapatıyor. 9 fotoluk albümünü okutmak isteyen olabilir — amaç engellemek değil, beklenti kurmak |
+| Açılışta bildirim izni **istenmiyor** | İzin tembel isteniyor (Ayarlar'dan açınca ya da çalışan analiz küçültülünce). Bağlamsız izin isteği reddedilir ve iOS'ta ret kalıcıdır |
 | Standard analizde onay ekranı **yok** | Hiç fotoğraf gönderilmiyor; sadece anonim sayılar. Onaylanacak bir şey yok |
 
 ---
