@@ -174,24 +174,20 @@ talimatları).
 
 ### ⚠️ Hemen — bu oturumun işi yarım kalmasın
 
-- [ ] **Backend'i deploy et:** `cd backend && vercel --prod`. `safetySettings`
-      değişikliği **canlıda değil**. Panelden "Redeploy" işe yaramaz — eski
-      kodu yayınlar (bkz. aşağıdaki KV notundaki ders).
-- [ ] **Xcode'da bir kez derle.** Bu oturumda 1 yeni dosya eklendi
-      (`ScopeVolumeNote.swift`, `xcodegen generate` çalıştırıldı) ve
-      `ReminderScheduler` baştan yazıldı. Derleme yapılmadı — CLAUDE.md gereği
-      Claude derlemiyor. SourceKit'in "Cannot find 'Theme' in scope" hataları
-      sahte, build'de geçiyor.
-- [ ] **Bildirimleri test et:** Ayarlar → "Monthly recap" aç → izin ver.
-      Aylık recap'i beklemeden görmek için cihaz tarihini ayın 1'ine al.
-- [ ] **Az foto uyarısını test et:** ay seçicide fotoğrafı olmayan eski bir ay
-      seç (buton kapanmalı) ve 10-20 fotoluk bir ay seç (turuncu uyarı).
+- [x] ✅ **Backend deploy edildi** — 2026-07-27, `dpl_8tVtmzKqLgyHRYs6cPxzRbTzbHtC`.
+      `vercel inspect backend-ertu-hobby.vercel.app` ile doğrulandı: uygulamanın
+      kullandığı alias yeni deployment'a bakıyor. Gizli anahtarsız istek hâlâ
+      401 dönüyor. `safetySettings` artık canlıda.
+- [x] ✅ **Xcode'da derlendi, hata yok** — 2026-07-27.
+- [x] ✅ **Cihaz testleri, review görselleri, Offering, gem akışı, env
+      anahtarları — kullanıcı tarafından tamamlandı** (2026-07-27 beyanı).
+      Connect'te "SOON" görünen kare kalmadı.
 
 ### Hızlı (birkaç dakika)
 
-- [ ] **Vercel env var'ları:** `REVENUECAT_SECRET_KEY` + `REVENUECAT_PROJECT_ID`
-      var mı? Yoksa kimse gem alamaz, reviewer dahil. `GEMINI_API_KEY` ve
-      `APP_SHARED_SECRET` de kontrol et.
+- [x] ✅ **Vercel env var'ları tanımlı** (2026-07-27 beyanı): RevenueCat
+      anahtarları, `GEMINI_API_KEY`, `APP_SHARED_SECRET`. Gem akışının gerçek
+      cihazda çalışması da bunu doğruluyor.
 - [x] ✅ **`KV_REST_API_URL` + `KV_REST_API_TOKEN`** — **çözüldü 2026-07-26.**
       Upstash veritabanı (`upstash-kv-citrine-zebra`) `backend` projesine zaten
       bağlıymış, ama **son deployment 9 gün eskiydi** ve env var'ları görmüyordu.
@@ -249,14 +245,18 @@ talimatları).
   **Konum beyan etme** — cihazdan çıkan tek şey `"cluster-1"` gibi anonim
   etiket + yüzde; koordinat/yer adı yok (koddan doğrulandı).
 
-- [ ] **3 IAP:** isim, açıklama, fiyat (1.99 / 3.99 / 7.99), **review
-      screenshot'ı** (zorunlu, paywall ekranı), durum "Ready to Submit", ve
-      **sürüme ekle**. RevenueCat tarafında Offering canlı + her ürüne
-      associated-product gem grant'i tanımlı olmalı.
+- [x] ✅ **3 IAP + review screenshot'ları + Offering** — tamamlandı
+      (2026-07-27 beyanı). Ürünlerin **sürüme eklenmiş** ve "Ready to Submit"
+      olduğunu göndermeden önce bir kez daha doğrula: bu ikisi ayrı adımdır ve
+      atlanınca paywall canlıda boş gelir.
+- [x] ✅ **Screenshot'lar** — "SOON" görünen kare kalmadı (2026-07-27 beyanı).
 - [ ] **Support URL:** `https://roastmygallery.unlertu.workers.dev/support/`
       · **Privacy Policy URL:** `.../privacy/` — ikisi de yayında, 200 dönüyor.
-- [ ] **Screenshot'lar** — "Coming soon"/"SOON" görünen kare varsa yenile.
-- [ ] **Review Notes** — aşağıdaki metni yapıştır.
+      Connect'teki alanlara girildiğinden emin ol.
+- [ ] **Review Notes** — aşağıdaki metni yapıştır. **Guideline 1.2 açısından
+      önemli:** rapor yolu (`Report this analysis`) sonuç ekranının en altında,
+      caption boyutunda ve gri — bilerek sessiz. Reviewer'ın onu bulmasını
+      sağlayan şey bu nottur.
 
 <details>
 <summary>Review Notes (hazır metin)</summary>
