@@ -425,38 +425,6 @@ struct SettingsView: View {
 
             Divider().overlay(Theme.Colors.background)
 
-            // The only string that identifies this customer to us. Without it,
-            // a "my gems are gone" email is unanswerable — there is no account,
-            // no email, nothing else to look them up by. Shown middle-truncated
-            // because it's for copying, not reading.
-            Button {
-                UIPasteboard.general.string = purchaseManager.appUserID
-                Haptics.success()
-                didCopyUserID = true
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    didCopyUserID = false
-                }
-            } label: {
-                HStack {
-                    SettingsRowLabel(
-                        icon: "person.text.rectangle",
-                        title: "User ID",
-                        detail: didCopyUserID ? "Copied to clipboard" : "Tap to copy — include it when you contact support"
-                    )
-                    Spacer(minLength: Theme.Spacing.m)
-                    Text(purchaseManager.appUserID)
-                        .font(Theme.Typography.caption)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: 96, alignment: .trailing)
-                }
-            }
-            .buttonStyle(.plain)
-
-            Divider().overlay(Theme.Colors.background)
-
             Button {
                 // The support page, not a `mailto:` draft: it answers the
                 // common questions (missing gems, new phone, refunds) before
@@ -506,6 +474,41 @@ struct SettingsView: View {
                 ])
                 .presentationDetents([.medium])
             }
+
+            Divider().overlay(Theme.Colors.background)
+
+            // Last row in the section on purpose. It is the only string that
+            // identifies this customer to us — without it a "my gems are gone"
+            // email is unanswerable, since there is no account and no address
+            // to look them up by — but it is support plumbing, not something
+            // anyone opens Settings to read, so it sits below the rows people
+            // actually come here for. Middle-truncated because it exists to be
+            // copied, not read.
+            Button {
+                UIPasteboard.general.string = purchaseManager.appUserID
+                Haptics.success()
+                didCopyUserID = true
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    didCopyUserID = false
+                }
+            } label: {
+                HStack {
+                    SettingsRowLabel(
+                        icon: "person.text.rectangle",
+                        title: "User ID",
+                        detail: didCopyUserID ? "Copied to clipboard" : "Tap to copy — include it when you contact support"
+                    )
+                    Spacer(minLength: Theme.Spacing.m)
+                    Text(purchaseManager.appUserID)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: 96, alignment: .trailing)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
