@@ -16,8 +16,14 @@ struct PurchaseSuccessView: View {
     @State private var ringScale: CGFloat = 0.3
     @State private var ringOpacity: Double = 0
     @State private var displayedGems = 0
+    @State private var gemScale: CGFloat = 0.7
+    @State private var gemGlow: Double = 0
+    @State private var gemLanded = false
     @State private var showButton = false
     @State private var isDismissing = false
+
+    /// How long the "+N" counter takes to roll from 0 to `gemsAdded`.
+    private let countUpDuration: Double = 0.9
 
     var body: some View {
         ZStack {
@@ -99,14 +105,11 @@ struct PurchaseSuccessView: View {
                                 Image(systemName: "diamond.fill")
                                     .font(.system(size: 20, weight: .medium))
                                     .foregroundStyle(Theme.Colors.accent)
-                                    .symbolEffect(.bounce, value: displayedGems)
+                                    .symbolEffect(.bounce, value: gemLanded)
 
-                                Text("+\(displayedGems)")
-                                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Theme.Colors.accent)
-                                    .contentTransition(.numericText())
-                                    .animation(.easeOut(duration: 0.6), value: displayedGems)
+                                gemCountText
                             }
+                            .scaleEffect(gemScale)
 
                             Text("gems added")
                                 .font(Theme.Typography.body)
@@ -148,6 +151,30 @@ struct PurchaseSuccessView: View {
         .onAppear { runEntrance() }
     }
 
+    // MARK: - Gem counter
+
+    /// The rolling "+N" counter. A hidden copy of the final value reserves the
+    /// row's width up front, so gaining a digit mid-count never shoves the
+    /// centred row sideways — the number rolls in place instead of jittering.
+    private var gemCountText: some View {
+        Text("+\(gemsAdded)")
+            .font(gemCountFont)
+            .monospacedDigit()
+            .opacity(0)
+            .overlay {
+                Text("+\(displayedGems)")
+                    .font(gemCountFont)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.Colors.accent)
+                    .contentTransition(.numericText(value: Double(displayedGems)))
+                    .shadow(color: Theme.Colors.accent.opacity(gemGlow), radius: 16)
+            }
+    }
+
+    private var gemCountFont: Font {
+        .system(size: 42, weight: .bold, design: .rounded)
+    }
+
     // MARK: - Animation sequence
 
     private func runEntrance() {
@@ -176,16 +203,69 @@ struct PurchaseSuccessView: View {
             showContent = true
         }
 
-        // Step 5: Gem counter ticks up (1.8s)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
-            withAnimation(.easeOut(duration: 0.8)) {
-                displayedGems = gemsAdded
+        // Step 5: Gem counter pops in and rolls up (1.35s → ~2.25s). It starts
+        // as the content finishes sliding in, so the number is never sitting
+        // there reading "+0" while the user waits for it to move.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.35) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) {
+                gemScale = 1.0
             }
+            runGemCountUp()
         }
 
         // Step 6: Continue button fades in (3.0s)
         withAnimation(.easeOut(duration: 0.5).delay(3.0)) {
             showButton = true
+        }
+    }
+
+    /// Ticks `displayedGems` up to `gemsAdded` in small steps so the numeric
+    /// text transition has intermediate values to roll through. A single
+    /// 0 → total jump gave the digits nothing to animate between, which is why
+    /// the number used to just snap into place.
+    private func runGemCountUp() {
+        let total = max(gemsAdded, 0)
+        guard total > 0 else { return }
+
+        let steps = min(total, 18)
+        let tick = countUpDuration / Double(steps)
+
+        for step in 1...steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + tick * Double(step)) {
+                // Ease out so the count decelerates into its final value.
+                let progress = Double(step) / Double(steps)
+                let eased = 1 - pow(1 - progress, 2.0)
+                let value = step == steps
+                    ? total
+                    : max(1, Int((Double(total) * eased).rounded()))
+
+                // Each tick animates for exactly its own slot — a longer
+                // duration would leave digits smearing over each other.
+                withAnimation(.easeOut(duration: tick)) {
+                    displayedGems = value
+                }
+
+                if step == steps { landGemCount() }
+            }
+        }
+    }
+
+    /// The payoff beat: the number overshoots, glows, then settles.
+    private func landGemCount() {
+        gemLanded = true
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.45)) {
+            gemScale = 1.18
+            gemGlow = 0.55
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                gemScale = 1.0
+            }
+            withAnimation(.easeOut(duration: 0.9)) {
+                gemGlow = 0
+            }
         }
     }
 
