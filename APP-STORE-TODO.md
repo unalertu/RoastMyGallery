@@ -311,9 +311,10 @@ batch. Uploaded images are processed in memory and are never stored or logged.
       *ikincisi* vermedi. Beklenen davranış bu.
 - [ ] Standard analiz → 1 gem düşüyor mu, hikâye geliyor mu
 - [ ] Boş bir ay seç → "No photos found…" + **gem düşmemeli**
-- [ ] **Deep analiz → yeni onay ekranı.** Üç yolu da dene: *Send* /
-      *Continue without captions* / sağ üstten **X ile kapat**. Üçünde de
-      hikâye kaydedilmeli, kaybolmamalı.
+- [x] ✅ **Deep analiz onay ekranı — doğrulandı 2026-07-27.** Üç yol da denendi
+      (*Send* / *Continue without captions* / **X ile kapat**), üçünde de hikâye
+      kaydedildi. Gizlilik politikası, App Privacy label'ı ve 5.1.1 duruşunun
+      dayandığı ekran bu — artık çalıştığı görülmüş durumda.
 - [ ] Sonuç ekranı → "Report this analysis" → mail taslağı açılıyor mu
       (Deep analizde de dene: orada 1500 karakter kırpması devreye giriyor)
 - [x] ✅ **Paywall + satın alma zinciri — GERÇEK CİHAZDA doğrulandı 2026-07-26.**
