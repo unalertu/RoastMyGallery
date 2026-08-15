@@ -23,6 +23,7 @@ struct InsightView: View {
     /// cards are instant; the story set is what takes a moment).
     @State private var isPreparingShareCards = false
     @State private var showPaywall = false
+    @State private var showAIDataSharingConsent = false
     @State private var paywallContext: PaywallView.Context = .general
     @State private var renderErrorMessage: String?
     /// Set when the report draft can't be opened because the device has no mail
@@ -73,6 +74,14 @@ struct InsightView: View {
         .foregroundStyle(Theme.Colors.textPrimary)
         .sheet(isPresented: $showPaywall) {
             PaywallView(context: paywallContext)
+        }
+        .sheet(isPresented: $showAIDataSharingConsent) {
+            AIDataSharingConsentView {
+                showAIDataSharingConsent = false
+                performRegenerate()
+            } onDecline: {
+                showAIDataSharingConsent = false
+            }
         }
         .sheet(item: $shareCardSet) { set in
             ShareCardPickerSheet(cards: set.cards)
@@ -240,6 +249,14 @@ struct InsightView: View {
             showPaywall = true
             return
         }
+        guard AIDataSharingConsent.isGranted else {
+            showAIDataSharingConsent = true
+            return
+        }
+        performRegenerate()
+    }
+
+    private func performRegenerate() {
         Haptics.primary()
         scanViewModel.regenerate(from: record, appUserID: purchaseManager.appUserID)
         // Inside the scan flow the shared view model already drives this

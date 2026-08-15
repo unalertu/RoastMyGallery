@@ -32,6 +32,8 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showDeleteConfirmation = false
     @State private var showShareSheet = false
+    @State private var showAIDataSharingConsent = false
+    @State private var showRevokeAIConsentConfirmation = false
 
     /// Outcome of a Restore tap, success or failure. A restore that finishes
     /// with no visible result reads as a broken button, which is worse than
@@ -46,6 +48,7 @@ struct SettingsView: View {
     /// only half the story — the switch below shows this AND the system
     /// permission, since either one being off means nothing arrives.
     @AppStorage("monthlyReminderEnabled") private var monthlyReminderEnabled = false
+    @AppStorage(AIDataSharingConsent.defaultsKey) private var aiDataSharingAllowed = false
 
     var body: some View {
         NavigationStack {
@@ -94,6 +97,14 @@ struct SettingsView: View {
             }
         }
         .sheet(isPresented: $showPaywall) { PaywallView() }
+        .sheet(isPresented: $showAIDataSharingConsent) {
+            AIDataSharingConsentView {
+                aiDataSharingAllowed = true
+                showAIDataSharingConsent = false
+            } onDecline: {
+                showAIDataSharingConsent = false
+            }
+        }
         .alert(
             "Restore Purchases",
             isPresented: Binding(
@@ -117,6 +128,19 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes every saved analysis from this device. It can't be undone.")
+        }
+        .confirmationDialog(
+            "Revoke Google Gemini permission?",
+            isPresented: $showRevokeAIConsentConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Revoke Permission", role: .destructive) {
+                AIDataSharingConsent.revoke()
+                aiDataSharingAllowed = false
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Future analyses will not send gallery statistics. You can review and allow this again before a later analysis.")
         }
         .onChange(of: monthlyReminderEnabled) { _, enabled in
             guard enabled else {
@@ -233,11 +257,30 @@ struct SettingsView: View {
                 Image(systemName: "lock.shield")
                     .font(.system(size: 22, weight: .light))
                     .foregroundStyle(Theme.Colors.accent)
-                Text("Your photos are analyzed on this device, and by default only anonymous statistics are sent. A photo leaves your phone only if you turn on AI captions — and even then you see the exact photos and approve them first. Approved photos go to our AI provider, Google Gemini, to be captioned — they are not used to train any AI model, and we don't keep a copy.")
+                Text("Your photos are analyzed on this device. Gallery statistics are sent through our backend to Google Gemini only after you allow AI processing. Photos require a separate screen showing the exact batch and are sent only after you approve it.")
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .lineSpacing(3)
             }
+
+            Divider().overlay(Theme.Colors.background)
+
+            Button {
+                if aiDataSharingAllowed {
+                    showRevokeAIConsentConfirmation = true
+                } else {
+                    showAIDataSharingConsent = true
+                }
+            } label: {
+                SettingsRowLabel(
+                    icon: "sparkles",
+                    title: "Google Gemini AI Processing",
+                    detail: aiDataSharingAllowed
+                        ? "Allowed — tap to revoke"
+                        : "Not allowed — tap to review"
+                )
+            }
+            .buttonStyle(.plain)
 
             Divider().overlay(Theme.Colors.background)
 

@@ -65,7 +65,7 @@ struct CaptionReviewView: View {
         let subject = assetIDs.count == 1
             ? "This photo is the one"
             : "These \(assetIDs.count) photos are the ones"
-        return "Your story is already written. \(subject) your results will show — tap any you'd rather not send. The ones left selected are resized on your device and sent once to our AI provider, Google Gemini, to be captioned. They are not used to train any AI model, and we don't keep a copy."
+        return "Your story is already written. \(subject) your results will show — tap any you'd rather not send. The ones left selected are resized on your device and sent once to Google Gemini, a third-party AI service, to be captioned. If you send none, no photo is uploaded. They are not used to train any AI model, and we don't keep a copy."
     }
 
     // MARK: - Tiles

@@ -27,7 +27,7 @@
     <div class="page-head">
       <span class="label">Legal</span>
       <h1>Privacy Policy</h1>
-      <p class="meta">Effective date: July 18, 2026 · Last updated: July 26, 2026</p>
+      <p class="meta">Effective date: July 18, 2026 · Last updated: August 15, 2026</p>
     </div>
 
     <article class="card legal">
@@ -37,8 +37,8 @@
       handles information in connection with your use of the App.</p>
 
       <p>We built Roast My Gallery to be <strong>privacy-first</strong>. The App analyzes your photo
-      library <strong>on your device</strong> and, by default, only ever sends anonymous,
-      aggregated statistics off your device to generate your results. We do not
+      library <strong>on your device</strong>. Gallery-derived statistics leave your device only
+      after you give in-app permission for Google Gemini processing. We do not
       require an account, we do not ask for your name or email, and we do not use
       advertising or third-party analytics/tracking SDKs.</p>
 
@@ -52,8 +52,12 @@
           <li><strong>Your photos stay on your device.</strong> The App scans your photo library
           locally using Apple's on-device frameworks. Your photos and videos are
           <strong>not</strong> uploaded as part of the standard experience.</li>
-          <li><strong>Only anonymous statistics leave your device by default.</strong> To write your
-          &ldquo;insight,&rdquo; the App sends a small, aggregated statistics summary (for example,
+          <li><strong>Statistics are sent only with your permission.</strong> Before the first AI
+          analysis, the App identifies Google Gemini as the third-party AI service,
+          lists the data categories that will be sent, explains the purpose, and asks
+          you to choose <strong>Allow AI Processing</strong> or <strong>Not Now</strong>. If you choose Not Now,
+          nothing is sent and the analysis does not start. If you allow it, the App
+          sends a small, aggregated statistics summary (for example,
           how many selfies or screenshots you have, category counts, and time-of-day
           patterns) to our backend, which uses a third-party AI provider (Google
           Gemini) to generate text. This summary contains no images, no file
@@ -112,6 +116,13 @@
 
       <p>The summary <strong>never</strong> contains your images, photo/file identifiers, precise
       GPS coordinates, contact names, or other identifying data.</p>
+
+      <p><strong>Permission is required before transmission.</strong> Before any PhotoStats request,
+      the App names <strong>Google Gemini</strong>, shows these data categories and their purpose,
+      and asks for your explicit permission. Choosing <strong>Not Now</strong> cancels the analysis
+      without transmitting PhotoStats. You can revoke this permission at any time in
+      <strong>Settings &rarr; Privacy &rarr; Google Gemini AI Processing</strong>. If you later start
+      another analysis, the disclosure is shown again before anything is sent.</p>
 
       <h3>3.3 Optional image uploads (Deep Analysis)</h3>
 
@@ -183,10 +194,15 @@
         <li><strong>Analysis history and settings</strong> are stored <strong>locally on your device</strong>. We
         do not receive a copy. You can remove this data by deleting your history in
         the App or by deleting the App.</li>
-        <li><strong>Notifications:</strong> If you enable the optional reminder, the App schedules a
-        <strong>local</strong> notification on your device (a periodic nudge to re-scan). This is
-        handled entirely on-device; we do not run a push-notification server and do
-        not receive notification data.</li>
+        <li><strong>Notifications:</strong> The App uses <strong>local</strong> notifications only &mdash; scheduled
+        and delivered by iOS on your own device. There are two kinds: an optional reminder
+        you switch on in Settings (a recap when a new month becomes available to analyze,
+        plus a single nudge if you have not run an analysis in a couple of weeks), and an
+        &ldquo;your analysis is ready&rdquo; alert if you leave the App while an analysis is still
+        running. Notification permission is requested only at the moment you first need it
+        &mdash; never at launch &mdash; and you can turn notifications off at any time in the App or
+        in iOS Settings. We do <strong>not</strong> operate a push-notification server, we never send
+        you anything from our side, and we receive no notification data.</li>
       </ul>
 
       <h2 id="how-we-use-information">4. How we use information</h2>
@@ -206,7 +222,10 @@
       <h2 id="providers">5. AI processing and service providers (sub-processors)</h2>
 
       <p>We rely on a small number of service providers to run the App. We do not sell
-      your personal information to anyone. Our providers are:</p>
+      your personal information to anyone. We require service providers that process
+      App data on our behalf to provide the same or equal level of privacy protection
+      described in this Policy and use the data only for the services we request.
+      Our providers are:</p>
 
       <div class="table-wrap">
         <table>
@@ -305,6 +324,10 @@
       <h2 id="your-choices">8. Your choices and rights</h2>
 
       <ul>
+        <li><strong>Google Gemini AI processing:</strong> You may decline permission before the first
+        analysis, in which case no gallery statistics are sent and the analysis does
+        not start. You can revoke a previous choice at any time in the App under
+        Settings &rarr; Privacy.</li>
         <li><strong>Photo access:</strong> You can grant, limit, or revoke photo access anytime in
         iOS Settings. Limiting or revoking access will reduce or disable analysis.</li>
         <li><strong>Notifications:</strong> You can turn the reminder off in the App or iOS Settings.</li>
@@ -378,7 +401,7 @@
         <a href="/support/">Support</a>
         <a href="mailto:roastmygallery@gmail.com">Contact</a>
       </nav>
-      <p class="caption">© 2026 Ertuğrul Ünal · roastmygallery@gmail.com</p>
+      <p class="caption">© 2026 Roast My Gallery · roastmygallery@gmail.com</p>
     </div>
   </footer>
 

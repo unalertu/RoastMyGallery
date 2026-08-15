@@ -59,6 +59,13 @@ struct BackendInsightGenerator: InsightGenerating {
         depth: AnalysisDepth,
         runID: UUID
     ) async throws -> Insight {
+        // Network-level backstop: UI checks improve the experience, but this
+        // guard is what guarantees no future or indirect caller can transmit
+        // gallery statistics without the user's explicit permission.
+        guard AIDataSharingConsent.isGranted else {
+            throw AnalysisError.aiDataSharingConsentRequired
+        }
+
         var request = URLRequest(url: baseURL.appending(path: "api/insight"))
         request.httpMethod = "POST"
         // Deep runs a stronger model over a 3× output budget — give it room.

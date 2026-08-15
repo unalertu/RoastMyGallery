@@ -86,7 +86,7 @@ targets:
         # MARKETING_VERSION must match the version App Store Connect shows for
         # the release ("1.0" on a first submission); bump CURRENT_PROJECT_VERSION
         # for every new archive uploaded to the SAME marketing version.
-        CURRENT_PROJECT_VERSION: 1
+        CURRENT_PROJECT_VERSION: 3
         MARKETING_VERSION: "1.0"
         DEVELOPMENT_TEAM: J7L764Z34L
 

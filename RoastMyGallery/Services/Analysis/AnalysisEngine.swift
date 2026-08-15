@@ -163,6 +163,9 @@ enum AnalysisError: LocalizedError {
     case photoAccessDenied
     case emptyLibrary
     case cancelled
+    /// No gallery-derived statistics may leave the device until the user has
+    /// explicitly approved sharing them with Google Gemini.
+    case aiDataSharingConsentRequired
     /// The backend's authoritative balance check rejected the run (HTTP 402)
     /// — the local balance was stale-high. No gems were taken.
     case insufficientGems
@@ -176,6 +179,8 @@ enum AnalysisError: LocalizedError {
             return "No photos found in the selected time range."
         case .cancelled:
             return "Analysis was cancelled."
+        case .aiDataSharingConsentRequired:
+            return "AI processing permission is required before any gallery data can be sent."
         case .insufficientGems:
             return "Not enough gems for this analysis. No gems were taken — top up and try again."
         case .backendUnavailable:

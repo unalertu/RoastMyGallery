@@ -1,15 +1,15 @@
 # Privacy Policy — Roast My Gallery
 
 **Effective date:** July 18, 2026
-**Last updated:** July 18, 2026
+**Last updated:** August 15, 2026
 
 This Privacy Policy explains how **Ertuğrul Ünal** ("we," "us," or "our"),
 the developer of the **Roast My Gallery** mobile application (the "App"),
 handles information in connection with your use of the App.
 
 We built Roast My Gallery to be **privacy-first**. The App analyzes your photo
-library **on your device** and, by default, only ever sends anonymous,
-aggregated statistics off your device to generate your results. We do not
+library **on your device**. Gallery-derived statistics leave your device only
+after you give in-app permission for Google Gemini processing. We do not
 require an account, we do not ask for your name or email, and we do not use
 advertising or third‑party analytics/tracking SDKs.
 
@@ -22,8 +22,12 @@ If you have any questions, contact us at **roastmygallery@gmail.com**.
 - **Your photos stay on your device.** The App scans your photo library
   locally using Apple's on‑device frameworks. Your photos and videos are
   **not** uploaded as part of the standard experience.
-- **Only anonymous statistics leave your device by default.** To write your
-  "insight," the App sends a small, aggregated statistics summary (for example,
+- **Statistics are sent only with your permission.** Before the first AI
+  analysis, the App identifies Google Gemini as the third-party AI service,
+  lists the data categories that will be sent, explains the purpose, and asks
+  you to choose **Allow AI Processing** or **Not Now**. If you choose Not Now,
+  nothing is sent and the analysis does not start. If you allow it, the App
+  sends a small, aggregated statistics summary (for example,
   how many selfies or screenshots you have, category counts, and time‑of‑day
   patterns) to our backend, which uses a third‑party AI provider (Google
   Gemini) to generate text. This summary contains no images, no file
@@ -79,6 +83,13 @@ personally identifying information**. It may include:
 
 The summary **never** contains your images, photo/file identifiers, precise
 GPS coordinates, contact names, or other identifying data.
+
+**Permission is required before transmission.** Before any PhotoStats request,
+the App names **Google Gemini**, shows these data categories and their purpose,
+and asks for your explicit permission. Choosing **Not Now** cancels the analysis
+without transmitting PhotoStats. You can revoke this permission at any time in
+**Settings → Privacy → Google Gemini AI Processing**. If you later start another
+analysis, the disclosure is shown again before anything is sent.
 
 ### 3.3 Optional image uploads (Deep Analysis)
 
@@ -145,10 +156,16 @@ or behavioral profiles.
 - **Analysis history and settings** are stored **locally on your device**. We
   do not receive a copy. You can remove this data by deleting your history in
   the App or by deleting the App.
-- **Notifications:** If you enable the optional reminder, the App schedules a
-  **local** notification on your device (a periodic nudge to re‑scan). This is
-  handled entirely on‑device; we do not run a push‑notification server and do
-  not receive notification data.
+- **Notifications:** The App uses **local** notifications only — scheduled and
+  delivered by iOS on your own device. There are two kinds: an optional reminder
+  you switch on in Settings (a recap when a new month becomes available to
+  analyze, plus a single nudge if you have not run an analysis in a couple of
+  weeks), and a "your analysis is ready" alert if you leave the App while an
+  analysis is still running. Notification permission is requested only at the
+  moment you first need it — never at launch — and you can turn notifications
+  off at any time in the App or in iOS Settings. We do **not** operate a push-
+  notification server, we never send you anything from our side, and we receive
+  no notification data.
 
 ---
 
@@ -169,7 +186,10 @@ We do **not** use your information for advertising, and we do **not** sell it.
 ## 5. AI processing and service providers (sub‑processors)
 
 We rely on a small number of service providers to run the App. We do not sell
-your personal information to anyone. Our providers are:
+your personal information to anyone. We require service providers that process
+App data on our behalf to provide the same or equal level of privacy protection
+described in this Policy and use the data only for the services we request.
+Our providers are:
 
 | Provider | Purpose | What they process |
 |---|---|---|
@@ -236,6 +256,10 @@ privacy commitments, linked below.
 
 ## 8. Your choices and rights
 
+- **Google Gemini AI processing:** You may decline permission before the first
+  analysis, in which case no gallery statistics are sent and the analysis does
+  not start. You can revoke a previous choice at any time in the App under
+  Settings → Privacy.
 - **Photo access:** You can grant, limit, or revoke photo access anytime in
   iOS Settings. Limiting or revoking access will reduce or disable analysis.
 - **Notifications:** You can turn the reminder off in the App or iOS Settings.
@@ -269,11 +293,12 @@ provided us with personal information, contact us at
 
 ## 10. International users and data transfers
 
-We operate the App from, and process backend data in, the **United States**.
-Our AI and service providers may also process data in the United States and
-other countries. If you use the App from outside the United States, you
-understand that your information may be processed in the United States, which
-may have different data‑protection laws than your country.
+We are based in **Türkiye**. Our backend is hosted in, and backend data is
+processed in, the **United States**. Our AI and service providers may also
+process data in the United States and other countries. By using the App, you
+understand that your information may be processed in the United States and
+other countries, which may have different data-protection laws than your
+country.
 
 ---
 

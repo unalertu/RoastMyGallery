@@ -11,6 +11,7 @@ struct PersonaPickerView: View {
     @State private var paywallContext: PaywallView.Context = .general
     @State private var showMonthPicker = false
     @State private var showDateRangePicker = false
+    @State private var showAIDataSharingConsent = false
     // Album picker is presented via `.sheet(item:)` (not a bool) so the fetched
     // albums are captured at trigger time — `.sheet(isPresented:)` snapshots
     // sibling @State one render too early and delivers an empty list.
@@ -56,17 +57,7 @@ struct PersonaPickerView: View {
             Spacer()
 
             Button(isDeep ? "Start Deep Analysis" : "Analyze My Photos") {
-                // Client-side affordability check is UX only — route to the
-                // paywall early if the balance looks short. The authoritative
-                // gate is RevenueCat rejecting an over-spend server-side.
-                if purchaseManager.canAfford(analysisCost) {
-                    Haptics.primary()
-                    scanViewModel.startScan(appUserID: purchaseManager.appUserID)
-                } else {
-                    Haptics.warning()
-                    paywallContext = .analysis(cost: analysisCost, have: purchaseManager.gemBalance)
-                    showPaywall = true
-                }
+                attemptStart()
             }
             .buttonStyle(PrimaryButtonStyle())
             .disabled(!canStart)
@@ -101,6 +92,35 @@ struct PersonaPickerView: View {
                 scanViewModel.selectedScope = scope
             }
         }
+        .sheet(isPresented: $showAIDataSharingConsent) {
+            AIDataSharingConsentView {
+                showAIDataSharingConsent = false
+                startScan()
+            } onDecline: {
+                showAIDataSharingConsent = false
+            }
+        }
+    }
+
+    private func attemptStart() {
+        // Client-side affordability check is UX only — route to the paywall
+        // early. The backend remains the authoritative balance gate.
+        guard purchaseManager.canAfford(analysisCost) else {
+            Haptics.warning()
+            paywallContext = .analysis(cost: analysisCost, have: purchaseManager.gemBalance)
+            showPaywall = true
+            return
+        }
+        guard AIDataSharingConsent.isGranted else {
+            showAIDataSharingConsent = true
+            return
+        }
+        startScan()
+    }
+
+    private func startScan() {
+        Haptics.primary()
+        scanViewModel.startScan(appUserID: purchaseManager.appUserID)
     }
 
     /// Both tiers require an explicit scope: deep needs a chosen date range AND
